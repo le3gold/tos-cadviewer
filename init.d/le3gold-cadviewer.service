@@ -6,11 +6,11 @@ StartLimitIntervalSec=60
 
 [Service]
 Type=simple
-User=cadviewer
-Group=cadviewer
-WorkingDirectory=/usr/local/cadviewer
-ExecStart=/usr/local/cadviewer/bin/cadviewer
-EnvironmentFile=/usr/local/cadviewer/cadviewer.env
+User=le3gold-cadviewer
+Group=le3gold-cadviewer
+WorkingDirectory=/usr/local/le3gold-cadviewer
+ExecStart=/usr/local/le3gold-cadviewer/bin/le3gold-cadviewer
+EnvironmentFile=/usr/local/le3gold-cadviewer/le3gold-cadviewer.env
 TimeoutStartSec=30
 TimeoutStopSec=10
 Restart=on-failure
@@ -32,7 +32,7 @@ RemoveIPC=true
 SystemCallArchitectures=native
 
 # Read-write paths
-ReadWritePaths=/var/lib/cadviewer /var/log/cadviewer
+ReadWritePaths=/var/lib/le3gold-cadviewer /var/log/le3gold-cadviewer
 
 # Resource limits
 LimitNOFILE=65536

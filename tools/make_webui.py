@@ -3,7 +3,7 @@
 
 TOS 7 ships an application's whole web frontend as a single ``webui.bz2``
 archive, which the package postinst script extracts to
-``/usr/local/cadviewer/webui`` at install time.
+``/usr/local/le3gold-cadviewer/webui`` at install time.
 
 Input is a *staged* copy of the upstream Online 3D Viewer build (see
 tools/build_frontend.py). On top of a plain "tar the directory" step this

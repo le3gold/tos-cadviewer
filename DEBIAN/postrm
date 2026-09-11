@@ -2,7 +2,7 @@
 # TOS 7 post-removal script for CAD Viewer.
 set -e
 
-APPID="cadviewer"
+APPID="le3gold-cadviewer"
 
 systemctl daemon-reload 2>/dev/null || true
 

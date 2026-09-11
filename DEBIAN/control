@@ -1,11 +1,11 @@
-Package: cadviewer
+Package: le3gold-cadviewer
 Version: 1.0.0
 Architecture: amd64
 Section: utils
 Priority: optional
-Maintainer: TerraMaster <support@terra-master.com>
+Maintainer: le3gold <le3gold@users.noreply.github.com>
 Depends: libc6 (>= 2.35), python3 (>= 3.10), systemd
-Homepage: https://github.com/YOUR-ORG/YOUR-REPO
+Homepage: https://github.com/le3gold/tos-cadviewer
 Description: CAD Viewer for TOS 7
  View and inspect 3D models and CAD files (STEP, IGES, BREP, IFC, STL, OBJ,
  PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF, AMF) directly in the browser.

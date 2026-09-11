@@ -31,7 +31,7 @@ import sys
 import tarfile
 import time
 
-APPID = 'cadviewer'
+APPID = 'le3gold-cadviewer'
 VERSION_FALLBACK = '1.0.0'
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -40,10 +40,10 @@ INSTALL_DIR = 'usr/local/' + APPID
 # Relative to the project root. Directories are copied recursively.
 PAYLOAD_FILES = (
     ('config.ini', 0o644),
-    ('cadviewer.lang', 0o644),
-    ('cadviewer.env', 0o644),
+    ('le3gold-cadviewer.lang', 0o644),
+    ('le3gold-cadviewer.env', 0o644),
     ('README.md', 0o644),
-    ('bin/cadviewer', 0o755),
+    ('bin/le3gold-cadviewer', 0o755),
 )
 PAYLOAD_DIRS = (
     'images',
@@ -69,7 +69,7 @@ ARCHITECTURES = {'x86_64': 'amd64', 'aarch64': 'arm64'}
 
 # Suffixes that must be written with LF endings.
 LF_SUFFIXES = ('.sh', '.ini', '.lang', '.env', '.conf', '.service', '.md', '.txt', '.json')
-LF_NAMES = frozenset(['config.ini', 'cadviewer.lang', 'cadviewer.env', 'bin/cadviewer',
+LF_NAMES = frozenset(['config.ini', 'le3gold-cadviewer.lang', 'le3gold-cadviewer.env', 'bin/le3gold-cadviewer',
                       'control', 'postinst', 'prerm', 'postrm', 'md5sums'])
 
 # Reported before a real submission, never in a package that is uploaded.

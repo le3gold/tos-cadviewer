@@ -7,7 +7,7 @@ streams by hand, prints what it finds, and fails on anything the TOS 7 guide
 or the Debian format requires.
 
 Usage:
-    python tools/verify_deb.py build/cadviewer_x86_64.deb
+    python tools/verify_deb.py build/le3gold-cadviewer_x86_64.deb
 """
 
 import argparse
@@ -23,7 +23,7 @@ AR_MAGIC = b'!<arch>\n'
 AR_HEADER_SIZE = 60
 DEBIAN_BINARY_CONTENT = b'2.0\n'
 
-APPID = 'cadviewer'
+APPID = 'le3gold-cadviewer'
 INSTALL_DIR = 'usr/local/' + APPID
 
 # Files the payload must provide, with the mode they must carry.
