@@ -1,0 +1,66 @@
+#!/bin/bash
+# TOS 7 post-install script for CAD Viewer.
+set -e
+
+APPID="cadviewer"
+APP_DIR="/usr/local/${APPID}"
+
+if [ "$1" = "configure" ] && [ -n "$2" ]; then
+    echo "${APPID}: upgrading from ${2} to 1.0.0"
+fi
+
+# The platform creates the "${APPID}" system user from the "user" field in
+# config.ini while installing, so this script must not create it (guide 8.14
+# and 10.3). The chown calls are best-effort for the same reason: if the
+# account does not exist yet, the platform's own ownership rules apply.
+mkdir -p "/var/lib/${APPID}" "/var/log/${APPID}"
+chown "${APPID}:${APPID}" "/var/lib/${APPID}" "/var/log/${APPID}" 2>/dev/null || true
+chmod 0750 "/var/lib/${APPID}" "/var/log/${APPID}"
+
+# Extract the frontend bundle: webui.bz2 -> <APP_DIR>/webui
+#
+# webui.bz2 is flat - index.html sits at the root of the archive, the way the
+# TOS 7 guide builds it (tar -cjf webui.bz2 -C webui/ .). It is extracted into
+# the webui/ subdirectory here so that the platform's own extraction, if it
+# happens, and this one cannot collide.
+if [ -f "${APP_DIR}/webui.bz2" ]; then
+    python3 - "${APP_DIR}" <<'PYEOF'
+import os
+import shutil
+import sys
+import tarfile
+
+app_dir = sys.argv[1]
+archive = os.path.join(app_dir, 'webui.bz2')
+target = os.path.join(app_dir, 'webui')
+
+with tarfile.open(archive, 'r:bz2') as tar:
+    for member in tar.getmembers():
+        name = member.name.lstrip('./')
+        if name.startswith('/') or '..' in name.split('/'):
+            raise SystemExit('unsafe path in webui.bz2: %s' % member.name)
+        if member.issym() or member.islnk():
+            raise SystemExit('links are not allowed in webui.bz2: %s' % member.name)
+
+if os.path.isdir(target):
+    shutil.rmtree(target)
+with tarfile.open(archive, 'r:bz2') as tar:
+    tar.extractall(target)
+print('webui extracted to %s' % target)
+PYEOF
+fi
+
+# The application directory follows the ownership in guide 10.4. ProtectSystem
+# =strict keeps /usr read-only for the service anyway, so this does not give
+# the service a writable install tree.
+chown -R "${APPID}:${APPID}" "${APP_DIR}" 2>/dev/null || true
+find "${APP_DIR}" -type d -exec chmod 0755 {} + 2>/dev/null || true
+find "${APP_DIR}" -type f -exec chmod 0644 {} + 2>/dev/null || true
+chmod 0755 "${APP_DIR}/bin/${APPID}" 2>/dev/null || true
+
+systemctl daemon-reload 2>/dev/null || true
+systemctl enable "${APPID}.service" 2>/dev/null || true
+systemctl start "${APPID}.service" 2>/dev/null || true
+
+echo "${APPID} installed successfully."
+exit 0

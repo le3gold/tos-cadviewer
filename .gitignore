@@ -1,0 +1,8 @@
+# Build output
+/build/
+/webui.bz2
+__pycache__/
+
+# Frontend build scratch space, kept outside the repository
+/_vendor/
+/.cache/

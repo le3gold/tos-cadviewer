@@ -1,0 +1,14 @@
+#!/bin/bash
+# TOS 7 pre-removal script for CAD Viewer.
+set -e
+
+APPID="cadviewer"
+
+# Stop the service first so no file handles stay open while dpkg removes files.
+systemctl stop "${APPID}.service" 2>/dev/null || true
+systemctl disable "${APPID}.service" 2>/dev/null || true
+
+# Terminate anything the service user still has running.
+pkill -u "${APPID}" 2>/dev/null || true
+
+exit 0

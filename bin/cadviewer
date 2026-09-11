@@ -1,0 +1,172 @@
+#!/usr/bin/python3
+"""CAD Viewer - TOS 7 backend service.
+
+Serves the static web frontend over HTTP. Runs as an unprivileged systemd
+service and listens on 0.0.0.0 so the app is reachable from the LAN.
+
+This file is part of the TOS 7 packaging of Online 3D Viewer.
+See ../licenses/NOTICE.md for attribution and a list of modifications.
+"""
+
+import os
+import posixpath
+import signal
+import sys
+import threading
+import time
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import unquote, urlsplit
+
+APP_ID = 'cadviewer'
+APP_VERSION = '1.0.0'
+
+APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WEBUI_DIR = os.environ.get('WEBUI_DIR', os.path.join(APP_DIR, 'webui'))
+LISTEN_HOST = os.environ.get('LISTEN_HOST', '0.0.0.0')
+LISTEN_PORT = int(os.environ.get('LISTEN_PORT', '8686'))
+URL_PREFIX = os.environ.get('URL_PREFIX', '/' + APP_ID).rstrip('/')
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
+
+# MIME types that Python's mimetypes module does not know about, or that must
+# not be guessed by the platform defaults. WebAssembly in particular has to be
+# served as application/wasm or the browser refuses to stream-compile it.
+EXTRA_MIME_TYPES = {
+    '.wasm': 'application/wasm',
+    '.js': 'text/javascript',
+    '.mjs': 'text/javascript',
+    '.json': 'application/json',
+    '.glb': 'model/gltf-binary',
+    '.gltf': 'model/gltf+json',
+    '.svg': 'image/svg+xml',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+    '.stp': 'application/octet-stream',
+    '.step': 'application/octet-stream',
+    '.iges': 'application/octet-stream',
+    '.igs': 'application/octet-stream',
+    '.brep': 'application/octet-stream',
+    '.ifc': 'application/octet-stream',
+    '.3dm': 'application/octet-stream',
+    '.fcstd': 'application/octet-stream',
+}
+
+# Long-lived caching for the hashed build artifacts, no caching for the HTML
+# entry points and the health probe.
+CACHEABLE_SUFFIXES = ('.js', '.css', '.woff', '.woff2', '.ttf', '.svg', '.png',
+                      '.jpg', '.jpeg', '.ico', '.wasm', '.glb', '.gltf')
+
+
+def log(message):
+    sys.stdout.write('[%s] %s %s\n' % (APP_ID, time.strftime('%Y-%m-%d %H:%M:%S'), message))
+    sys.stdout.flush()
+
+
+class CadViewerHandler(SimpleHTTPRequestHandler):
+
+    server_version = APP_ID + '/' + APP_VERSION
+    sys_version = ''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=WEBUI_DIR, **kwargs)
+
+    # -- routing -----------------------------------------------------------
+
+    def do_GET(self):
+        if self._is_health_probe():
+            return self._send_health()
+        return super().do_GET()
+
+    def do_HEAD(self):
+        if self._is_health_probe():
+            return self._send_health(head_only=True)
+        return super().do_HEAD()
+
+    def _is_health_probe(self):
+        return urlsplit(self.path).path.rstrip('/') in ('/health', URL_PREFIX + '/health')
+
+    def _send_health(self, head_only=False):
+        body = ('{"status":"ok","app":"%s","version":"%s"}' % (APP_ID, APP_VERSION)).encode('utf-8')
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(body)
+
+    # -- path handling -----------------------------------------------------
+
+    def translate_path(self, path):
+        path = urlsplit(path).path
+        if URL_PREFIX and (path == URL_PREFIX or path.startswith(URL_PREFIX + '/')):
+            path = path[len(URL_PREFIX):] or '/'
+        return super().translate_path(unquote(path))
+
+    def guess_type(self, path):
+        extension = posixpath.splitext(path)[1].lower()
+        if extension in EXTRA_MIME_TYPES:
+            return EXTRA_MIME_TYPES[extension]
+        return super().guess_type(path)
+
+    # -- headers -----------------------------------------------------------
+
+    def end_headers(self):
+        request_path = urlsplit(self.path).path.lower()
+        if request_path.endswith(CACHEABLE_SUFFIXES):
+            self.send_header('Cache-Control', 'public, max-age=86400')
+        else:
+            self.send_header('Cache-Control', 'no-cache')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        super().end_headers()
+
+    # -- hardening ---------------------------------------------------------
+
+    def list_directory(self, path):
+        # Directory listings are never needed by the frontend and must not be
+        # exposed on a NAS that is reachable from the LAN.
+        self.send_error(403, 'Directory listing is disabled')
+        return None
+
+    def log_message(self, fmt, *args):
+        if LOG_LEVEL == 'DEBUG' or not fmt.startswith('"'):
+            log('%s - %s' % (self.address_string(), fmt % args))
+
+
+class CadViewerServer(ThreadingHTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+
+def main():
+    if not os.path.isdir(WEBUI_DIR):
+        log('ERROR: webui directory not found: %s' % WEBUI_DIR)
+        return 1
+
+    log('starting on %s:%d (webui=%s, prefix=%s)' % (LISTEN_HOST, LISTEN_PORT, WEBUI_DIR, URL_PREFIX))
+    httpd = CadViewerServer((LISTEN_HOST, LISTEN_PORT), CadViewerHandler)
+
+    stop = threading.Event()
+
+    def handle_signal(signum, frame):
+        log('received signal %d, shutting down' % signum)
+        stop.set()
+
+    signal.signal(signal.SIGTERM, handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
+
+    worker = threading.Thread(target=httpd.serve_forever, name='http', daemon=True)
+    worker.start()
+    log('ready')
+    try:
+        stop.wait()
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        worker.join(timeout=5)
+    log('stopped')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

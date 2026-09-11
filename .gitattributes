@@ -1,0 +1,12 @@
+# The TOS 7 guide (4.6) requires LF line endings in the package. Pin them in
+# the repository too, so a checkout on any platform produces the same bytes.
+* text=auto eol=lf
+
+# No extension, but a shell-executed Python script.
+bin/* text eol=lf
+DEBIAN/* text eol=lf
+
+*.png binary
+*.jpg binary
+*.wasm binary
+*.bz2 binary

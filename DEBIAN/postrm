@@ -1,0 +1,27 @@
+#!/bin/bash
+# TOS 7 post-removal script for CAD Viewer.
+set -e
+
+APPID="cadviewer"
+
+systemctl daemon-reload 2>/dev/null || true
+
+# The frontend is extracted by postinst, so it is not part of the dpkg file
+# list and would survive a plain remove. Delete it in every removal case.
+rm -rf "/usr/local/${APPID}/webui" 2>/dev/null || true
+
+if [ "$1" = "purge" ]; then
+    if id -u "${APPID}" > /dev/null 2>&1; then
+        userdel "${APPID}" 2>/dev/null || true
+    fi
+
+    # Application runtime data only. User business data outside these paths is
+    # never touched.
+    rm -rf "/var/lib/${APPID}" 2>/dev/null || true
+    rm -rf "/var/log/${APPID}" 2>/dev/null || true
+    rm -rf "/usr/local/${APPID}" 2>/dev/null || true
+    rm -f "/etc/systemd/system/${APPID}.service" 2>/dev/null || true
+    systemctl daemon-reload 2>/dev/null || true
+fi
+
+exit 0

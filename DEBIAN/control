@@ -1,0 +1,14 @@
+Package: cadviewer
+Version: 1.0.0
+Architecture: amd64
+Section: utils
+Priority: optional
+Maintainer: TerraMaster <support@terra-master.com>
+Depends: libc6 (>= 2.35), python3 (>= 3.10), systemd
+Homepage: https://github.com/YOUR-ORG/YOUR-REPO
+Description: CAD Viewer for TOS 7
+ View and inspect 3D models and CAD files (STEP, IGES, BREP, IFC, STL, OBJ,
+ PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF, AMF) directly in the browser.
+ All parsing is performed locally on the TNAS; no cloud service is used.
+ .
+ Based on Online 3D Viewer by Viktor Kovacs (MIT). See licenses/NOTICE.md.

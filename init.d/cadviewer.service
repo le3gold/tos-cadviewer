@@ -1,0 +1,41 @@
+[Unit]
+Description=CAD Viewer Service
+After=network.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=cadviewer
+Group=cadviewer
+WorkingDirectory=/usr/local/cadviewer
+ExecStart=/usr/local/cadviewer/bin/cadviewer
+EnvironmentFile=/usr/local/cadviewer/cadviewer.env
+TimeoutStartSec=30
+TimeoutStopSec=10
+Restart=on-failure
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+SystemCallArchitectures=native
+
+# Read-write paths
+ReadWritePaths=/var/lib/cadviewer /var/log/cadviewer
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
