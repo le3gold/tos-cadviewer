@@ -32,7 +32,7 @@ import tarfile
 import time
 
 APPID = 'le3gold-cadviewer'
-VERSION_FALLBACK = '1.0.0'
+VERSION_FALLBACK = '1.0.1'
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INSTALL_DIR = 'usr/local/' + APPID
@@ -128,6 +128,33 @@ def collect_payload(root):
                 entries.append((relpath, 0o644, read_payload(child, relpath)))
     entries.sort(key=lambda entry: entry[0])
     return entries
+
+
+def add_ancestor_dirs(members):
+    """Insert the directory entries dpkg needs but does not create on its own.
+
+    dpkg does not create missing parents while unpacking. If data.tar.gz holds
+    ./usr/local/myapp/bin/myapp but has no entry for ./usr/local/myapp/bin, the
+    install dies at once with:
+
+        unable to create '.../bin/myapp.dpkg-new': No such file or directory
+
+    dpkg-deb always emits every ancestor directory, so a hand-written archive
+    has to do the same. The result is sorted so a parent always precedes its
+    children.
+    """
+    known = set(name for name, _data, _mode, is_dir in members if is_dir)
+    added = []
+    for name, _data, _mode, _is_dir in members:
+        parts = name.split('/')
+        for index in range(1, len(parts)):
+            ancestor = '/'.join(parts[:index])
+            if ancestor == '.':
+                ancestor = './'
+            if ancestor not in known:
+                known.add(ancestor)
+                added.append((ancestor, None, 0o755, True))
+    return sorted(members + added, key=lambda member: member[0])
 
 
 def build_md5sums(entries):
@@ -329,6 +356,7 @@ def main():
     data_members = [('./%s/%s' % (INSTALL_DIR, relpath),
                      0 if data is None else data, mode, data is None)
                     for relpath, mode, data in entries]
+    data_members = add_ancestor_dirs(data_members)
     control_members = []
     for source, name, mode in CONTROL_FILES:
         target = name if name == 'control' else name

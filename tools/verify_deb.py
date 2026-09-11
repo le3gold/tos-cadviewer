@@ -16,6 +16,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import sys
 import tarfile
 
@@ -128,6 +129,57 @@ def read_data_tar(blob):
                 if b'\r\n' in data:
                     problems.append('%s contains CRLF line endings' % name)
     return listing, files, problems
+
+
+def check_parent_dirs(listing, problems):
+    """Every ancestor directory needs its own entry, or dpkg cannot unpack.
+
+    dpkg does not create missing parents, and it reports the failure as
+    "unable to create '...x.dpkg-new': No such file or directory", which never
+    names the directory that is actually missing. dpkg-deb always emits the
+    ancestors, so a hand-written archive is the only way to get this wrong.
+    """
+    directories = set(path[:-1] for path, _mode, _size in listing if path.endswith('/'))
+    for path, _mode, _size in listing:
+        if path.endswith('/'):
+            continue
+        parts = path.split('/')
+        for index in range(1, len(parts)):
+            ancestor = '/'.join(parts[:index])
+            if ancestor and ancestor not in directories:
+                problems.append('data.tar.gz has no directory entry for /%s, '
+                                'so dpkg cannot create /%s' % (ancestor, path))
+                break
+
+
+def check_unit_namespace(files, problems):
+    """Catch the systemd hardening combination that cannot start on TOS 7.
+
+    /var/log is a symlink to the tmpfs /tmp/log on TOS 7. Declaring
+    ReadWritePaths=/var/log/<appid> together with PrivateTmp=true makes systemd
+    resolve the path inside the unit namespace, where it does not exist, and
+    the unit fails with 226/NAMESPACE before ExecStart ever runs. The guide's
+    own template asks for exactly that combination.
+    """
+    path = '%s/init.d/%s.service' % (INSTALL_DIR, APPID)
+    if path not in files:
+        return
+    text = files[path].decode('utf-8', 'replace')
+    private_tmp = re.search(r'(?mi)^\s*PrivateTmp\s*=\s*(true|yes|1)\s*$', text)
+    writable = re.findall(r'(?mi)^\s*ReadWritePaths\s*=\s*(.+)$', text)
+    log_paths = [item for line in writable for item in line.split()
+                 if item.startswith('/var/log')]
+    if not log_paths:
+        return
+    listed = ', '.join(log_paths)
+    if private_tmp:
+        problems.append('the unit sets PrivateTmp=true and also lists %s in '
+                        'ReadWritePaths; on TOS 7 /var/log is a symlink to the '
+                        'tmpfs /tmp/log, so the unit fails with 226/NAMESPACE'
+                        % listed)
+    else:
+        problems.append('the unit lists %s in ReadWritePaths; on TOS 7 /var/log '
+                        'is a symlink to the tmpfs /tmp/log' % listed)
 
 
 def check_permission_rules(entries, files, problems):
@@ -252,6 +304,7 @@ def main():
 
     listing, files, data_problems = read_data_tar(contents['data.tar.gz'])
     problems.extend(data_problems)
+    check_parent_dirs(listing, problems)
 
     print()
     print('payload    : %d entries' % len(listing))
@@ -271,6 +324,7 @@ def main():
 
     check_md5sums(entries, files, problems)
     check_permission_rules(entries, files, problems)
+    check_unit_namespace(files, problems)
 
     if INSTALL_DIR + '/config.ini' in files:
         try:

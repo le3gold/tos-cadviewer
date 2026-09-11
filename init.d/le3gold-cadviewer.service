@@ -31,8 +31,15 @@ RestrictSUIDSGID=true
 RemoveIPC=true
 SystemCallArchitectures=native
 
-# Read-write paths
-ReadWritePaths=/var/lib/le3gold-cadviewer /var/log/le3gold-cadviewer
+# Read-write paths.
+#
+# /var/log is deliberately absent. On TOS 7 /var/log is a symlink to /tmp/log
+# and /tmp is a tmpfs, so PrivateTmp=true below makes systemd resolve
+# /var/log/<appid> to a path that does not exist inside the unit namespace.
+# The unit then dies before ExecStart with 226/NAMESPACE ("Failed to set up
+# mount namespacing"). The service logs to the journal through stdout, so it
+# needs no writable log directory.
+ReadWritePaths=/var/lib/le3gold-cadviewer
 
 # Resource limits
 LimitNOFILE=65536

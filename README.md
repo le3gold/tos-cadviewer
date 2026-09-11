@@ -82,7 +82,7 @@ loadable `index.html` and the OCCT WebAssembly decoder.
 - [ ] Confirm the publisher name in `config.ini`, `le3gold-cadviewer.lang` and
       `DEBIAN/control`.
 - [ ] Create the public repository, attach `le3gold-cadviewer_x86_64.deb` and its
-      `.sha256` as Release assets, and tag the Release `1.0.0` (must equal
+      `.sha256` as Release assets, and tag the Release `1.0.1` (must equal
       `config.ini.version` and `DEBIAN/control` `Version`).
 - [ ] Verify TCP port 8686 does not conflict with an application that is
       already listed in the TOS App Center.

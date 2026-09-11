@@ -6,16 +6,18 @@ APPID="le3gold-cadviewer"
 APP_DIR="/usr/local/${APPID}"
 
 if [ "$1" = "configure" ] && [ -n "$2" ]; then
-    echo "${APPID}: upgrading from ${2} to 1.0.0"
+    echo "${APPID}: upgrading from ${2} to 1.0.1"
 fi
 
 # The platform creates the "${APPID}" system user from the "user" field in
 # config.ini while installing, so this script must not create it (guide 8.14
 # and 10.3). The chown calls are best-effort for the same reason: if the
 # account does not exist yet, the platform's own ownership rules apply.
-mkdir -p "/var/lib/${APPID}" "/var/log/${APPID}"
-chown "${APPID}:${APPID}" "/var/lib/${APPID}" "/var/log/${APPID}" 2>/dev/null || true
-chmod 0750 "/var/lib/${APPID}" "/var/log/${APPID}"
+# Only the state directory: the unit does not declare /var/log writable,
+# because /var/log is a symlink to the tmpfs /tmp/log on TOS 7.
+mkdir -p "/var/lib/${APPID}"
+chown "${APPID}:${APPID}" "/var/lib/${APPID}" 2>/dev/null || true
+chmod 0750 "/var/lib/${APPID}"
 
 # Extract the frontend bundle: webui.bz2 -> <APP_DIR>/webui
 #
