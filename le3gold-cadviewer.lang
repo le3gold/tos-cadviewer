@@ -1,97 +1,97 @@
 [en-us]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "View and inspect 3D models and CAD files directly in your browser, with nothing uploaded to the cloud. Supports STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF and AMF. All parsing runs locally on your TNAS and no internet connection is required."
 release_note = "1. First release, based on Online 3D Viewer 0.19.0."
 important = "Uses TCP port 8686 on your TNAS. Make sure this port is not occupied by another application."
 
 [zh-cn]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "在浏览器中直接查看和检查三维模型与 CAD 文件，文件不会被上传到云端。支持 STEP、IGES、BREP、IFC、STL、OBJ、PLY、3MF、GLTF/GLB、FBX、DAE、3DS、WRL、OFF、AMF 等格式。所有解析均在本机 TNAS 本地完成，无需联网。"
 release_note = "1. 首个版本，基于 Online 3D Viewer 0.19.0。"
 important = "本应用占用 TNAS 的 TCP 8686 端口，请确认该端口未被其他应用占用。"
 
 [zh-hk]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "在瀏覽器中直接檢視三維模型與 CAD 檔案，檔案不會上傳到雲端。支援 STEP、IGES、BREP、IFC、STL、OBJ、PLY、3MF、GLTF/GLB、FBX、DAE、3DS、WRL、OFF、AMF 等格式。所有解析均在本機 TNAS 本地完成，無需連線網路。"
 release_note = "1. 首個版本，基於 Online 3D Viewer 0.19.0。"
 important = "本應用佔用 TNAS 的 TCP 8686 連接埠，請確認該連接埠未被其他應用佔用。"
 
 [fr-fr]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "Affichez et inspectez des modeles 3D et des fichiers CAO directement dans votre navigateur, sans rien envoyer dans le cloud. Prend en charge STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF et AMF. Toute l'analyse est effectuee localement sur votre TNAS, sans connexion Internet."
 release_note = "1. Premiere version, basee sur Online 3D Viewer 0.19.0."
 important = "Utilise le port TCP 8686 de votre TNAS. Verifiez que ce port n'est pas occupe par une autre application."
 
 [de-de]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "Zeigen und pruefen Sie 3D-Modelle und CAD-Dateien direkt im Browser, ohne etwas in die Cloud hochzuladen. Unterstuetzt STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF und AMF. Die gesamte Verarbeitung erfolgt lokal auf Ihrem TNAS, eine Internetverbindung ist nicht erforderlich."
 release_note = "1. Erste Veroeffentlichung, basierend auf Online 3D Viewer 0.19.0."
 important = "Belegt den TCP-Port 8686 auf Ihrem TNAS. Stellen Sie sicher, dass dieser Port nicht von einer anderen Anwendung verwendet wird."
 
 [it-it]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "Visualizza e ispeziona modelli 3D e file CAD direttamente nel browser, senza caricare nulla sul cloud. Supporta STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF e AMF. Tutta l'elaborazione avviene localmente sul TNAS e non richiede connessione a Internet."
 release_note = "1. Prima versione, basata su Online 3D Viewer 0.19.0."
 important = "Utilizza la porta TCP 8686 del TNAS. Verificare che la porta non sia occupata da un'altra applicazione."
 
 [es-es]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "Vea e inspeccione modelos 3D y archivos CAD directamente en el navegador, sin subir nada a la nube. Compatible con STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF y AMF. Todo el procesamiento se realiza localmente en su TNAS y no requiere conexion a Internet."
 release_note = "1. Primera version, basada en Online 3D Viewer 0.19.0."
 important = "Utiliza el puerto TCP 8686 de su TNAS. Compruebe que este puerto no este ocupado por otra aplicacion."
 
 [hu-hu]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "View and inspect 3D models and CAD files directly in your browser, with nothing uploaded to the cloud. Supports STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF and AMF. All parsing runs locally on your TNAS and no internet connection is required."
 release_note = "1. First release, based on Online 3D Viewer 0.19.0."
 important = "Uses TCP port 8686 on your TNAS. Make sure this port is not occupied by another application."
 
 [ja-jp]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "ブラウザから直接 3D モデルや CAD ファイルを表示・確認できます。ファイルはクラウドに送信されません。STEP、IGES、BREP、IFC、STL、OBJ、PLY、3MF、GLTF/GLB、FBX、DAE、3DS、WRL、OFF、AMF に対応しています。解析はすべて TNAS 上でローカルに実行され、インターネット接続は不要です。"
 release_note = "1. 初回リリース。Online 3D Viewer 0.19.0 をベースにしています。"
 important = "TNAS の TCP ポート 8686 を使用します。このポートが他のアプリケーションで使用されていないことを確認してください。"
 
 [ko-kr]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "브라우저에서 바로 3D 모델과 CAD 파일을 확인할 수 있으며 파일은 클라우드로 전송되지 않습니다. STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF, AMF 형식을 지원합니다. 모든 변환은 TNAS에서 로컬로 처리되며 인터넷 연결이 필요하지 않습니다."
 release_note = "1. 최초 릴리스이며 Online 3D Viewer 0.19.0을 기반으로 합니다."
 important = "TNAS의 TCP 포트 8686을 사용합니다. 이 포트가 다른 응용 프로그램에서 사용 중이지 않은지 확인하십시오."
 
 [pl-pl]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "View and inspect 3D models and CAD files directly in your browser, with nothing uploaded to the cloud. Supports STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF and AMF. All parsing runs locally on your TNAS and no internet connection is required."
 release_note = "1. First release, based on Online 3D Viewer 0.19.0."
 important = "Uses TCP port 8686 on your TNAS. Make sure this port is not occupied by another application."
 
 [ru-ru]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "Просматривайте 3D-модели и CAD-файлы прямо в браузере, не загружая их в облако. Поддерживаются форматы STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF и AMF. Вся обработка выполняется локально на вашем TNAS, подключение к интернету не требуется."
 release_note = "1. Первый выпуск, основан на Online 3D Viewer 0.19.0."
 important = "Использует TCP-порт 8686 на вашем TNAS. Убедитесь, что этот порт не занят другим приложением."
 
 [tr-tr]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "View and inspect 3D models and CAD files directly in your browser, with nothing uploaded to the cloud. Supports STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF and AMF. All parsing runs locally on your TNAS and no internet connection is required."
 release_note = "1. First release, based on Online 3D Viewer 0.19.0."
 important = "Uses TCP port 8686 on your TNAS. Make sure this port is not occupied by another application."
 
 [pt-pt]
 name = "CAD Viewer"
-auth = "TerraMaster"
+auth = "le3gold"
 descript = "Visualize e inspecione modelos 3D e ficheiros CAD diretamente no navegador, sem enviar nada para a nuvem. Suporta STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF e AMF. Todo o processamento e feito localmente no seu TNAS e nao requer ligacao a Internet."
 release_note = "1. Primeira versao, baseada no Online 3D Viewer 0.19.0."
 important = "Utiliza a porta TCP 8686 do seu TNAS. Certifique-se de que esta porta nao esta ocupada por outra aplicacao."

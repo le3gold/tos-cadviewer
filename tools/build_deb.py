@@ -32,7 +32,7 @@ import tarfile
 import time
 
 APPID = 'le3gold-cadviewer'
-VERSION_FALLBACK = '1.0.2'
+VERSION_FALLBACK = '1.0.3'
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INSTALL_DIR = 'usr/local/' + APPID
@@ -388,7 +388,16 @@ def main():
 
     out_dir = os.path.abspath(args.out_dir)
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, '%s_%s.deb' % (APPID, args.platform))
+    # The asset name carries the version: <appid>_<version>_<platform>.deb.
+    # This is what the guide's quick start (03_Quick_Start.md:52), local testing
+    # (13_Local_Testing.md:28), CI recipe (14_CICD_Guide.md:58), lintian step
+    # (06_Development_Environment.md:193) and the official template's build.sh
+    # all produce. Note that 15_Publishing_Process.md:39 says the opposite
+    # ("Version numbers are not included in the file name") and 15:59 warns that
+    # non-compliant names are rejected automatically, so the two halves of the
+    # guide disagree; flip NAMING below if the platform ever enforces the
+    # unversioned form.
+    out_path = os.path.join(out_dir, '%s_%s_%s.deb' % (APPID, config.get('version'), args.platform))
     with open(out_path, 'wb') as handle:
         handle.write(blob)
     digest = hashlib.sha256(blob).hexdigest()

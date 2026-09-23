@@ -48,8 +48,20 @@ python tools/make_webui.py --stage D:/work/_vendor/webui_stage --out webui.bz2
 
 # 3. Build and check the package.
 python tools/build_deb.py
-python tools/verify_deb.py build/le3gold-cadviewer_x86_64.deb
+python tools/verify_deb.py build/le3gold-cadviewer_1.0.3_x86_64.deb
 ```
+
+### Release asset naming
+
+`tools/build_deb.py` writes `<appid>_<version>_<platform>.deb` and a matching
+`.sha256`. The versioned form is what the guide itself produces everywhere it
+shows a command - quick start (03:52), lintian (06:193), local testing (13:28),
+the CI recipe (14:58) and the official template's `build.sh` - while
+`15_Publishing_Process.md:39` states that the version must *not* appear in the
+file name and 15:59 says non-compliant names are rejected automatically. Both
+cannot be right; the builder follows the majority reading and the version is
+also carried by the Release tag, so switching back is a one-line change in
+`tools/build_deb.py`.
 
 `tools/build_frontend.py` pins the upstream commit, the esbuild options and the
 version of every library vendored into the bundle, so the same inputs produce
@@ -79,11 +91,14 @@ loadable `index.html` and the OCCT WebAssembly decoder.
 
 - [x] `config.ini` (`help`, `official`) and `DEBIAN/control` (`Homepage`) point at
       `le3gold/tos-cadviewer`, the public repository that hosts the Release assets.
-- [ ] Confirm the publisher name in `config.ini`, `le3gold-cadviewer.lang` and
-      `DEBIAN/control`.
-- [ ] Create the public repository, attach `le3gold-cadviewer_x86_64.deb` and its
-      `.sha256` as Release assets, and tag the Release `1.0.1` (must equal
-      `config.ini.version` and `DEBIAN/control` `Version`).
+- [x] Publisher name is `le3gold` in `config.ini`, `le3gold-cadviewer.lang`
+      (`auth`, which is what the App Center shows) and `DEBIAN/control`. The
+      `auth` field must never carry the platform vendor's name: an application
+      shipped with `auth = "TerraMaster"` is attributed to TerraMaster rather
+      than to its author.
+- [ ] Create the public repository, attach `le3gold-cadviewer_<version>_x86_64.deb`
+      and its `.sha256` as Release assets, and tag the Release with the same
+      string as `config.ini.version` / `DEBIAN/control` `Version`.
 - [ ] Verify TCP port 8686 does not conflict with an application that is
       already listed in the TOS App Center.
 - [ ] Run `bash -n DEBIAN/postinst DEBIAN/prerm DEBIAN/postrm` on a Linux host.
