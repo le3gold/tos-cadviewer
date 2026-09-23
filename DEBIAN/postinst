@@ -6,7 +6,7 @@ APPID="le3gold-cadviewer"
 APP_DIR="/usr/local/${APPID}"
 
 if [ "$1" = "configure" ] && [ -n "$2" ]; then
-    echo "${APPID}: upgrading from ${2} to 1.0.1"
+    echo "${APPID}: upgrading from ${2} to 1.0.2"
 fi
 
 # The platform creates the "${APPID}" system user from the "user" field in

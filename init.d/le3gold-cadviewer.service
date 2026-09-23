@@ -6,8 +6,20 @@ StartLimitIntervalSec=60
 
 [Service]
 Type=simple
-User=le3gold-cadviewer
-Group=le3gold-cadviewer
+
+# User=/Group= are deliberately absent.
+#
+# The guide marks User=<appid> and Group=<appid> as required, but on TOS 7 the
+# platform creates only the user (uid >= 10000) and gives it `allusers` as its
+# primary group; no group named <appid> is ever created. A unit that asks for
+# it dies with "Failed to determine group credentials" and status 216/GROUP,
+# then restart-loops until systemd gives up with "Start request repeated too
+# quickly". Creating the missing group by hand only moves the failure to
+# 200/CHDIR: the application's own files live under /Volume1/@apps/<appid>
+# (reached through the platform-created /usr/local/<appid> symlink), and that
+# volume is mounted with btrfs `tmacl`, which denies every non-root user -
+# including the application's own user - any access to it. All 30 applications
+# installed on the reference TNAS run as root for this reason.
 WorkingDirectory=/usr/local/le3gold-cadviewer
 ExecStart=/usr/local/le3gold-cadviewer/bin/le3gold-cadviewer
 EnvironmentFile=/usr/local/le3gold-cadviewer/le3gold-cadviewer.env

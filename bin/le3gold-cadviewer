@@ -18,7 +18,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
 
 APP_ID = 'le3gold-cadviewer'
-APP_VERSION = '1.0.1'
+APP_VERSION = '1.0.2'
 
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEBUI_DIR = os.environ.get('WEBUI_DIR', os.path.join(APP_DIR, 'webui'))

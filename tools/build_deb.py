@@ -32,7 +32,7 @@ import tarfile
 import time
 
 APPID = 'le3gold-cadviewer'
-VERSION_FALLBACK = '1.0.1'
+VERSION_FALLBACK = '1.0.2'
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INSTALL_DIR = 'usr/local/' + APPID
@@ -254,10 +254,22 @@ def preflight(root, config, control_text, control_fields):
     if service is None:
         errors.append('system_id %r has no init.d/%s.service' % (system_id, system_id))
     else:
-        if 'User=%s' % config.get('user') not in service:
-            errors.append('systemd unit User= must match config.ini user (%r)' % config.get('user'))
-        if 'Group=%s' % config.get('user') not in service:
-            errors.append('systemd unit Group= must match config.ini user (%r)' % config.get('user'))
+        # The guide marks User=<appid> and Group=<appid> as required, but the
+        # platform creates only the user: no group named <appid> exists, so
+        # systemd aborts with 216/GROUP. Creating the group by hand only moves
+        # the failure to 200/CHDIR, because the application's files live under
+        # /Volume1/@apps/<appid> and that btrfs volume is mounted with `tmacl`,
+        # which denies non-root users all access - the application's own user
+        # included. Every application installed on the reference TNAS runs as
+        # root, so an explicit identity is a defect, not a compliance item.
+        uncommented = re.sub(r'(?mi)^\s*#.*$', '', service)
+        for directive in ('User', 'Group'):
+            match = re.search(r'(?mi)^\s*%s\s*=\s*(\S+)\s*$' % directive, uncommented)
+            if match and match.group(1) == config.get('user'):
+                errors.append('systemd unit sets %s=%s, but the platform creates no such group '
+                              '(systemd fails with 216/GROUP, and the app user cannot read '
+                              '/Volume1/@apps anyway): leave the identity unset'
+                              % (directive, match.group(1)))
         if 'ProtectSystem=strict' not in service:
             warnings.append('systemd unit should set ProtectSystem=strict')
         if 'NoNewPrivileges=true' not in service:

@@ -182,6 +182,32 @@ def check_unit_namespace(files, problems):
                         'is a symlink to the tmpfs /tmp/log' % listed)
 
 
+def check_unit_identity(files, problems):
+    """Catch the unit identity that cannot start on TOS 7.
+
+    The guide marks User=<appid> and Group=<appid> as required, but the
+    platform creates only the user and gives it `allusers` as its primary
+    group; no group named <appid> is created. Such a unit dies with
+    "Failed to determine group credentials" / 216/GROUP and restart-loops.
+    Adding the group by hand only moves the failure to 200/CHDIR, because the
+    application's own files sit under /Volume1/@apps/<appid> (through the
+    platform's /usr/local/<appid> symlink) and that btrfs volume is mounted
+    with `tmacl`, which denies non-root users - including the application's own
+    user - all access. Every application installed on the reference TNAS runs
+    as root for this reason.
+    """
+    path = '%s/init.d/%s.service' % (INSTALL_DIR, APPID)
+    if path not in files:
+        return
+    text = files[path].decode('utf-8', 'replace')
+    for directive in ('User', 'Group'):
+        match = re.search(r'(?mi)^\s*%s\s*=\s*(\S+)\s*$' % directive, text)
+        if match and match.group(1) in (APPID, APPID + '.service'):
+            problems.append('the unit sets %s=%s, but the platform never '
+                            'creates that group: systemd fails with 216/GROUP '
+                            'and the service restart-loops' % (directive, match.group(1)))
+
+
 def check_permission_rules(entries, files, problems):
     """Encode the permission red lines from guide chapter 10."""
     for name in ('postinst', 'prerm', 'postrm'):
@@ -206,10 +232,14 @@ def check_permission_rules(entries, files, problems):
         problems.append('payload has no init.d/%s.service' % APPID)
         return
     text = unit.decode('utf-8', 'replace')
-    for directive in ('User=root', 'Group=root'):
-        if directive in text:
-            problems.append('systemd unit must not run as root (%s)' % directive)
-    for directive in ('=%s' % APPID, 'ProtectSystem=strict', 'NoNewPrivileges=true'):
+    # TOS 7 cannot satisfy the guide's non-root identity: the platform creates
+    # the user but never a group of the same name (216/GROUP), and even once
+    # the group exists the application's own files under /Volume1/@apps are
+    # unreachable for non-root users, because that btrfs volume is mounted with
+    # `tmacl`. Every application installed on the reference TNAS runs as root,
+    # so only the hardening directives are required here. An explicit
+    # User=<appid>/Group=<appid> is rejected by check_unit_identity instead.
+    for directive in ('ProtectSystem=strict', 'NoNewPrivileges=true'):
         if directive not in text:
             problems.append('systemd unit is missing %s' % directive)
 
@@ -325,6 +355,7 @@ def main():
     check_md5sums(entries, files, problems)
     check_permission_rules(entries, files, problems)
     check_unit_namespace(files, problems)
+    check_unit_identity(files, problems)
 
     if INSTALL_DIR + '/config.ini' in files:
         try:

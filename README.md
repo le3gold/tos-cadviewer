@@ -117,12 +117,31 @@ expect it. Renaming it to `site/` is a one-line change in those three files.
 | `/usr/local/le3gold-cadviewer/` | Install directory (read-only at runtime) |
 | `/usr/local/le3gold-cadviewer/webui/` | Frontend, extracted from `webui.bz2` at install time |
 | `/var/lib/le3gold-cadviewer/` | Application runtime state |
-| `/var/log/le3gold-cadviewer/` | Application logs |
+| `/var/log/le3gold-cadviewer/` | **Not used.** `/var/log` is a symlink to the tmpfs `/tmp/log`, so the directory is never created for the application and anything written there is erased at every reboot. Logs go to the journal instead |
 | TCP 8686 | Backend HTTP port (see `important` in `le3gold-cadviewer.lang`) |
 
 `webui.bz2` is flat: `index.html` sits at the root of the archive, which is how
 the guide builds it (`tar -cjf webui.bz2 -C webui/ .`). `postinst` extracts it
 into `webui/` and `bin/le3gold-cadviewer` serves it from there.
 
-The service runs as the unprivileged system user `le3gold-cadviewer`, with
-`ProtectSystem=strict`, `NoNewPrivileges=true` and no privileged mode.
+## Why the unit declares no `User=`/`Group=`
+
+The guide marks `User=<appid>` and `Group=<appid>` as required (8.13.2), but the
+platform never creates a group of that name: a unit that asks for it dies with
+`Failed to determine group credentials` / `216/GROUP` and restart-loops until
+systemd gives up with "Start request repeated too quickly". Creating the group by
+hand only moves the failure to `200/CHDIR`, because the application's own files
+live under `/Volume1/@apps/<appid>` (reached through the platform-created
+`/usr/local/<appid>` symlink) and that btrfs volume is mounted with `tmacl`,
+which denies non-root users - the application's own user included - all access.
+Of the 30 applications installed on the reference TNAS, not one uses a dedicated
+identity, and the only approved third-party application does not set `User=`
+either.
+
+The unit therefore keeps the default identity and isolates the service with
+`ProtectSystem=strict`, `NoNewPrivileges=true`, `ProtectHome`, `PrivateTmp` and
+the rest of the hardening block. `tools/verify_deb.py` rejects an explicit
+`User=<appid>`/`Group=<appid>` and `tools/build_deb.py` refuses to build one.
+
+Logs go to the journal (`journalctl -u le3gold-cadviewer`), never to
+`/var/log/<appid>`.
