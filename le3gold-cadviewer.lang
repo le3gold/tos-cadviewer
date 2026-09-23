@@ -2,96 +2,96 @@
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "View and inspect 3D models and CAD files directly in your browser, with nothing uploaded to the cloud. Supports STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF and AMF. All parsing runs locally on your TNAS and no internet connection is required."
-release_note = "1. Import a model straight from the shared folders on the NAS, without downloading it to your computer first.</br>2. The import button now offers a choice: this computer or the NAS."
+release_note = "1. Import a model straight from the shared folders on the NAS, without downloading it to your computer first.</br>2. The import button now offers a choice: this computer or the NAS.</br>3. The import menu and the NAS browser are in English, and the app uses the upstream project's own icon."
 important = "Uses TCP port 8686 on your TNAS. Make sure this port is not occupied by another application. Do not expose this port to the internet."
 
 [zh-cn]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "在浏览器中直接查看和检查三维模型与 CAD 文件，文件不会被上传到云端。支持 STEP、IGES、BREP、IFC、STL、OBJ、PLY、3MF、GLTF/GLB、FBX、DAE、3DS、WRL、OFF、AMF 等格式。所有解析均在本机 TNAS 本地完成，无需联网。"
-release_note = "1. 可以直接从 NAS 的共享文件夹导入模型，不必先下载到电脑再上传。</br>2. 导入按钮现在提供两个选项：从电脑导入、从 NAS 导入。"
+release_note = "1. 可以直接从 NAS 的共享文件夹导入模型，不必先下载到电脑再上传。</br>2. 导入按钮现在提供两个选项：从电脑导入、从 NAS 导入。</br>3. 导入菜单与 NAS 浏览器统一为英文，应用图标改用上游项目自带的图标。"
 important = "本应用占用 TNAS 的 TCP 8686 端口，请确认该端口未被其他应用占用。请勿将该端口暴露到公网。"
 
 [zh-hk]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "在瀏覽器中直接檢視三維模型與 CAD 檔案，檔案不會上傳到雲端。支援 STEP、IGES、BREP、IFC、STL、OBJ、PLY、3MF、GLTF/GLB、FBX、DAE、3DS、WRL、OFF、AMF 等格式。所有解析均在本機 TNAS 本地完成，無需連線網路。"
-release_note = "1. 可以直接從 NAS 的共享資料夾匯入模型，不必先下載到電腦再上傳。</br>2. 匯入按鈕現在提供兩個選項：從電腦匯入、從 NAS 匯入。"
+release_note = "1. 可以直接從 NAS 的共享資料夾匯入模型，不必先下載到電腦再上傳。</br>2. 匯入按鈕現在提供兩個選項：從電腦匯入、從 NAS 匯入。</br>3. 匯入選單與 NAS 瀏覽器統一為英文，應用圖示改用上游專案自帶的圖示。"
 important = "本應用佔用 TNAS 的 TCP 8686 連接埠，請確認該連接埠未被其他應用佔用。請勿將該連接埠暴露到公網。"
 
 [fr-fr]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Affichez et inspectez des modeles 3D et des fichiers CAO directement dans votre navigateur, sans rien envoyer dans le cloud. Prend en charge STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF et AMF. Toute l'analyse est effectuee localement sur votre TNAS, sans connexion Internet."
-release_note = "1. Importez un modele directement depuis les dossiers partages du NAS, sans le telecharger d'abord sur votre ordinateur.</br>2. Le bouton d'importation propose desormais un choix : cet ordinateur ou le NAS."
+release_note = "1. Importez un modele directement depuis les dossiers partages du NAS, sans le telecharger d'abord sur votre ordinateur.</br>2. Le bouton d'importation propose desormais un choix : cet ordinateur ou le NAS.</br>3. Le menu d'importation et le navigateur du NAS sont en anglais, et l'application utilise desormais l'icone d'origine du projet."
 important = "Utilise le port TCP 8686 de votre TNAS. Verifiez que ce port n'est pas occupe par une autre application. N'exposez pas ce port sur Internet."
 
 [de-de]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Zeigen und pruefen Sie 3D-Modelle und CAD-Dateien direkt im Browser, ohne etwas in die Cloud hochzuladen. Unterstuetzt STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF und AMF. Die gesamte Verarbeitung erfolgt lokal auf Ihrem TNAS, eine Internetverbindung ist nicht erforderlich."
-release_note = "1. Modelle direkt aus den freigegebenen Ordnern des NAS importieren, ohne sie vorher auf den Computer zu laden.</br>2. Die Import-Schaltflaeche bietet jetzt eine Auswahl: dieser Computer oder das NAS."
+release_note = "1. Modelle direkt aus den freigegebenen Ordnern des NAS importieren, ohne sie vorher auf den Computer zu laden.</br>2. Die Import-Schaltflaeche bietet jetzt eine Auswahl: dieser Computer oder das NAS.</br>3. Das Importmenue und der NAS-Browser sind auf Englisch, und die App verwendet jetzt das Originalsymbol des Projekts."
 important = "Belegt den TCP-Port 8686 auf Ihrem TNAS. Stellen Sie sicher, dass dieser Port nicht von einer anderen Anwendung verwendet wird. Diesen Port nicht im Internet freigeben."
 
 [it-it]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Visualizza e ispeziona modelli 3D e file CAD direttamente nel browser, senza caricare nulla sul cloud. Supporta STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF e AMF. Tutta l'elaborazione avviene localmente sul TNAS e non richiede connessione a Internet."
-release_note = "1. Importa un modello direttamente dalle cartelle condivise del NAS, senza prima scaricarlo sul computer.</br>2. Il pulsante di importazione ora offre una scelta: questo computer o il NAS."
+release_note = "1. Importa un modello direttamente dalle cartelle condivise del NAS, senza prima scaricarlo sul computer.</br>2. Il pulsante di importazione ora offre una scelta: questo computer o il NAS.</br>3. Il menu di importazione e il browser del NAS sono in inglese e l'app utilizza ora l'icona originale del progetto."
 important = "Utilizza la porta TCP 8686 del TNAS. Verificare che la porta non sia occupata da un'altra applicazione. Non esporre questa porta su Internet."
 
 [es-es]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Vea e inspeccione modelos 3D y archivos CAD directamente en el navegador, sin subir nada a la nube. Compatible con STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF y AMF. Todo el procesamiento se realiza localmente en su TNAS y no requiere conexion a Internet."
-release_note = "1. Importe un modelo directamente desde las carpetas compartidas del NAS, sin descargarlo antes al ordenador.</br>2. El boton de importacion ahora ofrece una eleccion: este equipo o el NAS."
+release_note = "1. Importe un modelo directamente desde las carpetas compartidas del NAS, sin descargarlo antes al ordenador.</br>2. El boton de importacion ahora ofrece una eleccion: este equipo o el NAS.</br>3. El menu de importacion y el explorador del NAS estan en ingles, y la aplicacion usa ahora el icono original del proyecto."
 important = "Utiliza el puerto TCP 8686 de su TNAS. Compruebe que este puerto no este ocupado por otra aplicacion. No exponga este puerto a Internet."
 
 [hu-hu]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "View and inspect 3D models and CAD files directly in your browser, with nothing uploaded to the cloud. Supports STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF and AMF. All parsing runs locally on your TNAS and no internet connection is required."
-release_note = "1. Import a model straight from the shared folders on the NAS, without downloading it to your computer first.</br>2. The import button now offers a choice: this computer or the NAS."
+release_note = "1. Import a model straight from the shared folders on the NAS, without downloading it to your computer first.</br>2. The import button now offers a choice: this computer or the NAS.</br>3. The import menu and the NAS browser are in English, and the app uses the upstream project's own icon."
 important = "Uses TCP port 8686 on your TNAS. Make sure this port is not occupied by another application. Do not expose this port to the internet."
 
 [ja-jp]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "ブラウザから直接 3D モデルや CAD ファイルを表示・確認できます。ファイルはクラウドに送信されません。STEP、IGES、BREP、IFC、STL、OBJ、PLY、3MF、GLTF/GLB、FBX、DAE、3DS、WRL、OFF、AMF に対応しています。解析はすべて TNAS 上でローカルに実行され、インターネット接続は不要です。"
-release_note = "1. NAS の共有フォルダからモデルを直接取り込めます。パソコンにダウンロードしてから再アップロードする必要はありません。</br>2. 取り込みボタンで、このパソコンか NAS を選べるようになりました。"
+release_note = "1. NAS の共有フォルダからモデルを直接取り込めます。パソコンにダウンロードしてから再アップロードする必要はありません。</br>2. 取り込みボタンで、このパソコンか NAS を選べるようになりました。</br>3. 取り込みメニューと NAS ブラウザーは英語表記になり、アプリのアイコンは上流プロジェクト本来のアイコンに変更しました。"
 important = "TNAS の TCP ポート 8686 を使用します。このポートが他のアプリケーションで使用されていないことを確認してください。 このポートをインターネットに公開しないでください。"
 
 [ko-kr]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "브라우저에서 바로 3D 모델과 CAD 파일을 확인할 수 있으며 파일은 클라우드로 전송되지 않습니다. STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF, AMF 형식을 지원합니다. 모든 변환은 TNAS에서 로컬로 처리되며 인터넷 연결이 필요하지 않습니다."
-release_note = "1. NAS의 공유 폴더에서 모델을 바로 가져올 수 있습니다. 컴퓨터로 내려받아 다시 업로드할 필요가 없습니다.</br>2. 가져오기 버튼에서 이 컴퓨터 또는 NAS를 선택할 수 있습니다."
+release_note = "1. NAS의 공유 폴더에서 모델을 바로 가져올 수 있습니다. 컴퓨터로 내려받아 다시 업로드할 필요가 없습니다.</br>2. 가져오기 버튼에서 이 컴퓨터 또는 NAS를 선택할 수 있습니다.</br>3. 가져오기 메뉴와 NAS 브라우저는 영어로 표시되며, 앱 아이콘은 업스트림 프로젝트의 원래 아이콘으로 변경했습니다."
 important = "TNAS의 TCP 포트 8686을 사용합니다. 이 포트가 다른 응용 프로그램에서 사용 중이지 않은지 확인하십시오. 이 포트를 인터넷에 노출하지 마십시오."
 
 [pl-pl]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "View and inspect 3D models and CAD files directly in your browser, with nothing uploaded to the cloud. Supports STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF and AMF. All parsing runs locally on your TNAS and no internet connection is required."
-release_note = "1. Import a model straight from the shared folders on the NAS, without downloading it to your computer first.</br>2. The import button now offers a choice: this computer or the NAS."
+release_note = "1. Import a model straight from the shared folders on the NAS, without downloading it to your computer first.</br>2. The import button now offers a choice: this computer or the NAS.</br>3. The import menu and the NAS browser are in English, and the app uses the upstream project's own icon."
 important = "Uses TCP port 8686 on your TNAS. Make sure this port is not occupied by another application. Do not expose this port to the internet."
 
 [ru-ru]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Просматривайте 3D-модели и CAD-файлы прямо в браузере, не загружая их в облако. Поддерживаются форматы STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF и AMF. Вся обработка выполняется локально на вашем TNAS, подключение к интернету не требуется."
-release_note = "1. Импортируйте модель прямо из общих папок NAS, не скачивая её сначала на компьютер.</br>2. Кнопка импорта теперь предлагает выбор: этот компьютер или NAS."
+release_note = "1. Импортируйте модель прямо из общих папок NAS, не скачивая её сначала на компьютер.</br>2. Кнопка импорта теперь предлагает выбор: этот компьютер или NAS.</br>3. Меню импорта и браузер NAS теперь на английском языке, а значок приложения — оригинальный значок проекта."
 important = "Использует TCP-порт 8686 на вашем TNAS. Убедитесь, что этот порт не занят другим приложением. Не открывайте этот порт в интернет."
 
 [tr-tr]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "View and inspect 3D models and CAD files directly in your browser, with nothing uploaded to the cloud. Supports STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF and AMF. All parsing runs locally on your TNAS and no internet connection is required."
-release_note = "1. Import a model straight from the shared folders on the NAS, without downloading it to your computer first.</br>2. The import button now offers a choice: this computer or the NAS."
+release_note = "1. Import a model straight from the shared folders on the NAS, without downloading it to your computer first.</br>2. The import button now offers a choice: this computer or the NAS.</br>3. The import menu and the NAS browser are in English, and the app uses the upstream project's own icon."
 important = "Uses TCP port 8686 on your TNAS. Make sure this port is not occupied by another application. Do not expose this port to the internet."
 
 [pt-pt]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Visualize e inspecione modelos 3D e ficheiros CAD diretamente no navegador, sem enviar nada para a nuvem. Suporta STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF e AMF. Todo o processamento e feito localmente no seu TNAS e nao requer ligacao a Internet."
-release_note = "1. Importe um modelo diretamente das pastas partilhadas do NAS, sem o descarregar primeiro para o computador.</br>2. O botao de importacao oferece agora uma escolha: este computador ou o NAS."
+release_note = "1. Importe um modelo diretamente das pastas partilhadas do NAS, sem o descarregar primeiro para o computador.</br>2. O botao de importacao oferece agora uma escolha: este computador ou o NAS.</br>3. O menu de importacao e o navegador do NAS estao em ingles, e a aplicacao usa agora o icone original do projeto."
 important = "Utiliza a porta TCP 8686 do seu TNAS. Certifique-se de que esta porta nao esta ocupada por outra aplicacao. Nao exponha esta porta na Internet."

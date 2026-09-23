@@ -13,7 +13,7 @@ le3gold-cadviewer/
 ├── le3gold-cadviewer.lang             # 14-language store listing text
 ├── le3gold-cadviewer.env              # Environment variables for the systemd unit
 ├── bin/le3gold-cadviewer              # Backend: Python 3 static file server
-├── images/icons/le3gold-cadviewer.svg # App icon (SVG, transparent background)
+├── images/icons/le3gold-cadviewer.svg # App icon: the upstream project's logo
 ├── init.d/le3gold-cadviewer.service   # systemd unit
 ├── nginx/le3gold-cadviewer.conf       # nginx location block (external open)
 ├── licenses/                  # Upstream and third-party license texts
@@ -52,7 +52,7 @@ python tools/make_webui.py --stage D:/work/_vendor/webui_stage --out webui.bz2
 
 # 3. Build and check the package.
 python tools/build_deb.py
-python tools/verify_deb.py build/le3gold-cadviewer_1.1.1_x86_64.deb
+python tools/verify_deb.py build/le3gold-cadviewer_1.1.2_x86_64.deb
 ```
 
 ### Release asset naming

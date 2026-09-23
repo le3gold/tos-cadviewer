@@ -91,3 +91,12 @@ Its source form is available at the upstream repository listed above.
 not used as the name of this application. This package is published under the
 name "CAD Viewer". The upstream project name appears only in this NOTICE and in
 the application description, for attribution.
+
+The application icon is the upstream project's own logo, taken unmodified from
+`assets/images/3dviewer_net_logo.svg` in the pinned upstream source, so that
+the installed application is recognisable as a build of Online 3D Viewer. The
+logo is covered by the same MIT license as the rest of the project (see
+`LICENSE-Online3DViewer-MIT.md`). The one adjustment is that upstream draws the
+logo outline with a CSS variable (`--ov_logo_border_color`), which an icon file
+cannot resolve, so the value that variable holds in the upstream light theme
+(`#000000`) is written out instead.

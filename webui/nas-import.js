@@ -30,54 +30,13 @@
             cancel: 'Cancel',
             loading: 'Loading...',
             failed: 'Could not read the folder:'
-        },
-        'zh-cn': {
-            menuComputer: '从电脑导入',
-            menuNas: '从 NAS 导入',
-            title: '从 NAS 导入',
-            shares: '共享文件夹',
-            up: '上一层',
-            empty: '这个文件夹里没有可导入的模型。',
-            formats: '这里只列出 Viewer 能打开的格式。',
-            open: '打开',
-            cancel: '取消',
-            loading: '读取中...',
-            failed: '读取文件夹失败：'
-        },
-        'zh-tw': {
-            menuComputer: '從電腦匯入',
-            menuNas: '從 NAS 匯入',
-            title: '從 NAS 匯入',
-            shares: '共享資料夾',
-            up: '上一層',
-            empty: '這個資料夾裡沒有可匯入的模型。',
-            formats: '這裡只列出 Viewer 能打開的格式。',
-            open: '開啟',
-            cancel: '取消',
-            loading: '讀取中...',
-            failed: '讀取資料夾失敗：'
         }
     };
 
-    // The viewer itself is upstream and always English, so there is no
-    // in-app language setting to follow; the browser decides.
-    var LANGUAGE = (function () {
-        var value = (navigator.language || 'en').toLowerCase ();
-        if (value.indexOf ('zh') === 0) {
-            if (value.indexOf ('tw') !== -1 || value.indexOf ('hk') !== -1 || value.indexOf ('hant') !== -1) {
-                return 'zh-tw';
-            }
-            return 'zh-cn';
-        }
-        return 'en';
-    } ());
-
+    // The viewer itself is upstream and English only, and this package ships a
+    // single English interface, so the strings above are used as they are.
     function T (key)
     {
-        var table = STRINGS[LANGUAGE] || STRINGS['en'];
-        if (table[key] !== undefined) {
-            return table[key];
-        }
         return STRINGS['en'][key] !== undefined ? STRINGS['en'][key] : key;
     }
 
