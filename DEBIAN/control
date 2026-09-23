@@ -1,9 +1,9 @@
 Package: le3gold-cadviewer
-Version: 1.1.3
+Version: 1.1.4
 Architecture: amd64
 Section: utils
 Priority: optional
-Maintainer: le3gold <le3gold@users.noreply.github.com>
+Maintainer: lee3gold <lee3gold@users.noreply.github.com>
 Depends: libc6 (>= 2.35), python3 (>= 3.10), systemd
 Homepage: https://github.com/le3gold/tos-cadviewer
 Description: CAD Viewer for TOS 7
