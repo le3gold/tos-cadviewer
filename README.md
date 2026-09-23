@@ -91,11 +91,13 @@ loadable `index.html` and the OCCT WebAssembly decoder.
 
 - [x] `config.ini` (`help`, `official`) and `DEBIAN/control` (`Homepage`) point at
       `le3gold/tos-cadviewer`, the public repository that hosts the Release assets.
-- [x] Publisher name is `le3gold` in `config.ini`, `le3gold-cadviewer.lang`
-      (`auth`, which is what the App Center shows) and `DEBIAN/control`. The
-      `auth` field must never carry the platform vendor's name: an application
-      shipped with `auth = "TerraMaster"` is attributed to TerraMaster rather
-      than to its author.
+- [x] Attribution is split the way it should be for a repackaged open source
+      application: `auth` in `le3gold-cadviewer.lang` (the field the App Center
+      shows as the developer) names the upstream author, `Viktor Kovacs`, while
+      `publisher` in `config.ini` and `Maintainer` in `DEBIAN/control` name the
+      packager, `le3gold`. Neither may carry the platform vendor's name: an
+      application shipped with `auth = "TerraMaster"` is credited to TerraMaster
+      instead of to its author.
 - [ ] Create the public repository, attach `le3gold-cadviewer_<version>_x86_64.deb`
       and its `.sha256` as Release assets, and tag the Release with the same
       string as `config.ini.version` / `DEBIAN/control` `Version`.
