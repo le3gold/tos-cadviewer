@@ -351,7 +351,7 @@
             }
             var url = BuildFileUrl (selected.path);
             Close ();
-            onPick (url);
+            onPick (url, selected.name);
         }
 
         closeButton.addEventListener ('click', Close);
@@ -384,6 +384,107 @@
         };
     }
 
+    // A glTF that keeps its buffers and textures beside itself, and an OBJ that
+    // names a material library, only mention those files inside themselves. The
+    // importer asks the host for them by name while it reads the model, so they
+    // have to be handed over in the same list as the model, or the import stops
+    // with "One of the requested buffers is missing".
+    function CompanionNames (extension, text)
+    {
+        var names = [];
+        function add (uri)
+        {
+            if (typeof uri !== 'string' || uri.length === 0 || uri.indexOf ('data:') === 0) {
+                return;
+            }
+            // Absolute URLs and protocol relative ones are not siblings.
+            if (uri.indexOf ('//') !== -1 || uri.indexOf (':') !== -1) {
+                return;
+            }
+            if (names.indexOf (uri) === -1) {
+                names.push (uri);
+            }
+        }
+        if (extension === '.gltf') {
+            var json = null;
+            try {
+                json = JSON.parse (text);
+            } catch (error) {
+                json = null;
+            }
+            if (json === null) {
+                return names;
+            }
+            (json.buffers || []).forEach (function (item) { add (item && item.uri); });
+            (json.images || []).forEach (function (item) { add (item && item.uri); });
+        } else if (extension === '.obj') {
+            var lines = text.split ('\n');
+            for (var i = 0; i < lines.length; i++) {
+                var match = /^\s*mtllib\s+(.+?)\s*$/.exec (lines[i]);
+                if (match !== null) {
+                    add (match[1]);
+                }
+            }
+        } else if (extension === '.mtl') {
+            var mtlLines = text.split ('\n');
+            for (var j = 0; j < mtlLines.length; j++) {
+                var texture = /^\s*map_\w+\s+(.+?)\s*$/.exec (mtlLines[j]);
+                if (texture !== null) {
+                    add (texture[1]);
+                }
+            }
+        }
+        return names;
+    }
+
+    function ReadText (url)
+    {
+        return fetch (url).then (function (response) {
+            return response.ok ? response.text () : '';
+        }).catch (function () {
+            return '';
+        });
+    }
+
+    function SiblingUrl (url, name)
+    {
+        var directory = url.replace (/[^\/]*$/, '');
+        return directory + name.split ('/').map (encodeURIComponent).join ('/');
+    }
+
+    function LoadWithCompanions (url, name, onUrls)
+    {
+        var extension = (name.match (/\.[^.]*$/) || [''])[0].toLowerCase ();
+        if (extension !== '.gltf' && extension !== '.obj') {
+            onUrls ([url]);
+            return;
+        }
+        ReadText (url).then (function (text) {
+            var urls = [url];
+            var libraries = [];
+            CompanionNames (extension, text).forEach (function (companion) {
+                var sibling = SiblingUrl (url, companion);
+                urls.push (sibling);
+                if (extension === '.obj') {
+                    libraries.push (sibling);
+                }
+            });
+            // The material library names its textures, so one more round.
+            Promise.all (libraries.map (function (library) {
+                return ReadText (library).then (function (body) {
+                    return CompanionNames ('.mtl', body);
+                });
+            })).then (function (lists) {
+                lists.forEach (function (list) {
+                    list.forEach (function (texture) {
+                        urls.push (SiblingUrl (url, texture));
+                    });
+                });
+                onUrls (urls);
+            });
+        });
+    }
+
     function Install (website)
     {
         var toolbar = document.getElementById ('toolbar');
@@ -412,8 +513,10 @@
                 {
                     label : T ('menuNas'),
                     onPick : function () {
-                        ShowNasDialog (function (url) {
-                            website.LoadModelFromUrlList ([url], CreateImportSettings (website));
+                        ShowNasDialog (function (url, name) {
+                            LoadWithCompanions (url, name, function (urls) {
+                                website.LoadModelFromUrlList (urls, CreateImportSettings (website));
+                            });
                         });
                     }
                 }

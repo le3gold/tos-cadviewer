@@ -51,7 +51,13 @@ EXTERNAL_LIBS = (
     ('occt-import-js', '0.0.22', 'package/dist/occt-import-js.wasm', 'occt-import-js.wasm'),
     ('occt-import-js', '0.0.22', 'package/dist/occt-import-js-worker.js', 'occt-import-js-worker.js'),
     ('rhino3dm', '8.17.0', 'package/rhino3dm.min.js', 'rhino3dm.min.js'),
+    # The wasm these two loaders fetch sits beside them. A missing wasm is
+    # not reported anywhere: the importer stays on "Importing Model".
+    ('rhino3dm', '8.17.0', 'package/rhino3dm.wasm', 'rhino3dm.wasm'),
     ('web-ifc', '0.0.68', 'package/web-ifc-api-iife.js', 'web-ifc-api-iife.js'),
+    ('web-ifc', '0.0.68', 'package/web-ifc.wasm', 'web-ifc.wasm'),
+    # The threaded build picks this one when the page is cross origin isolated.
+    ('web-ifc', '0.0.68', 'package/web-ifc-mt.wasm', 'web-ifc-mt.wasm'),
     # draco3d's npm package ships no browser build of the decoder, so take
     # the self-contained JS build from three.js. A version of None means
     # "whatever the upstream package.json pins".
