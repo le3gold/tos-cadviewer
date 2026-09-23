@@ -52,7 +52,7 @@ python tools/make_webui.py --stage D:/work/_vendor/webui_stage --out webui.bz2
 
 # 3. Build and check the package.
 python tools/build_deb.py
-python tools/verify_deb.py build/le3gold-cadviewer_1.1.2_x86_64.deb
+python tools/verify_deb.py build/le3gold-cadviewer_1.1.3_x86_64.deb
 ```
 
 ### Release asset naming
@@ -95,13 +95,14 @@ loadable `index.html` and the OCCT WebAssembly decoder.
 
 - [x] `config.ini` (`help`, `official`) and `DEBIAN/control` (`Homepage`) point at
       `le3gold/tos-cadviewer`, the public repository that hosts the Release assets.
-- [x] Attribution is split the way it should be for a repackaged open source
-      application: `auth` in `le3gold-cadviewer.lang` (the field the App Center
-      shows as the developer) names the upstream author, `Viktor Kovacs`, while
-      `publisher` in `config.ini` and `Maintainer` in `DEBIAN/control` name the
-      packager, `le3gold`. Neither may carry the platform vendor's name: an
+- [x] Attribution for the packaged work is complete, and the application is
+      published under the packager's name: `auth` in `le3gold-cadviewer.lang`
+      (the field the App Center shows as the developer), `publisher` in
+      `config.ini` and `Maintainer` in `DEBIAN/control` all read `le3gold`, and
+      the upstream copyright notice, the MIT text and the list of modifications
+      live in `licenses/`. None of them may carry the platform vendor's name: an
       application shipped with `auth = "TerraMaster"` is credited to TerraMaster
-      instead of to its author.
+      instead of to anyone real.
 - [ ] Create the public repository, attach `le3gold-cadviewer_<version>_x86_64.deb`
       and its `.sha256` as Release assets, and tag the Release with the same
       string as `config.ini.version` / `DEBIAN/control` `Version`.
@@ -189,8 +190,10 @@ Developer line followed `auth` in both cases, the Publisher line followed
 
 For a repackaged open source application that distinction matters, because the
 Developer line is the one readers and upstream maintainers look at. This package
-therefore credits the upstream author through `auth` and the packager through
-`publisher` and the `DEBIAN/control` `Maintainer`. If the guide really does
+puts the packager in both fields — `auth`, `publisher` and the `DEBIAN/control`
+`Maintainer` all read `le3gold` — and gives the upstream attribution where the
+MIT license puts it, in `licenses/NOTICE.md` and
+`licenses/LICENSE-Online3DViewer-MIT.md`. If the guide really does
 intend `publisher` to be the Developer line, then the documentation and the
 7.0.1201 UI disagree, and one of them should be corrected before the next
 application copies this pattern.

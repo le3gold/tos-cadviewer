@@ -90,7 +90,10 @@ Its source form is available at the upstream repository listed above.
 "Online 3D Viewer" and "3dviewer.net" are the upstream project's names and are
 not used as the name of this application. This package is published under the
 name "CAD Viewer". The upstream project name appears only in this NOTICE and in
-the application description, for attribution.
+the application description, for attribution. The App Center "Developer" and
+"Publisher" fields name the author of the packaging, not the upstream author;
+the credit that the MIT license requires lives in this file and in
+`LICENSE-Online3DViewer-MIT.md`, which ship inside the package.
 
 The application icon is the upstream project's own logo, taken unmodified from
 `assets/images/3dviewer_net_logo.svg` in the pinned upstream source, so that
