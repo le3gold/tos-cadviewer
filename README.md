@@ -127,6 +127,32 @@ lifecycle scripts only speak of `webui.bz2`. This package extracts the frontend
 into `<app_dir>/webui/`, which is where `le3gold-cadviewer.env` and `bin/le3gold-cadviewer`
 expect it. Renaming it to `site/` is a one-line change in those three files.
 
+
+The third question is about attribution, and it is the one that cannot be worked
+around at runtime. The guide describes both fields as the name shown in the App
+Center:
+
+- 8.5.3 says `auth` in the `.lang` file is the "Developer/organization name";
+- 8.4.2 says `publisher` in `config.ini` is "the developer or organization name
+  displayed in the App Center", and 11.2 repeats that `publisher` "is displayed
+  to users".
+
+On TOS 7.0.1201 they are two different fields in the App Center UI: the `.lang`
+`auth` value is rendered as the **Developer** line, and the `config.ini`
+`publisher` value is rendered as the **Publisher** line. This was verified by
+installing both 1.0.2 (`auth = "TerraMaster"`, `publisher = "le3gold"`) and 1.0.3
+(`auth = "Viktor Kovacs"`, `publisher = "le3gold"`) on the same device: the
+Developer line followed `auth` in both cases, the Publisher line followed
+`publisher` in both cases.
+
+For a repackaged open source application that distinction matters, because the
+Developer line is the one readers and upstream maintainers look at. This package
+therefore credits the upstream author through `auth` and the packager through
+`publisher` and the `DEBIAN/control` `Maintainer`. If the guide really does
+intend `publisher` to be the Developer line, then the documentation and the
+7.0.1201 UI disagree, and one of them should be corrected before the next
+application copies this pattern.
+
 ## Runtime layout on the TNAS
 
 | Path | Purpose |
