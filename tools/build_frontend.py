@@ -15,7 +15,12 @@ What it does:
   3. builds the engine and website bundles with the pinned esbuild;
   4. runs the upstream packaging script and copies the result into the stage
      directory consumed by tools/make_webui.py;
-  5. vendors the four payload libraries at their pinned versions.
+  5. exposes the website object, so webui/nas-import.js can drive the viewer
+     without upstream having to offer an entry point;
+  6. drops this repository's NAS import script and stylesheet into the stage,
+     tags them into index.html, and restamps every local script and stylesheet
+     with its own content digest so that a rebuilt release is a new URL;
+  7. vendors the four payload libraries at their pinned versions.
 
 Requires: git, node/npm, and network access for the clone and the npm
 packages. Everything else is pinned.
@@ -25,8 +30,10 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -74,6 +81,24 @@ SOURCE_EDITS = (
 )
 SOURCE_REL = os.path.join('source', 'engine', 'import', 'importerutils.js')
 
+# The website object is created inside StartWebsite and never handed out, so
+# webui/nas-import.js has no way to reach LoadModelFromUrlList without this
+# one added line.
+WEBSITE_SOURCE_REL = os.path.join('source', 'website', 'index.js')
+WEBSITE_SOURCE_EDITS = (
+    ('        website.Load ();',
+     '        window.o3dvWebsite = website;\n        website.Load ();'),
+)
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+NAS_IMPORT_ASSETS = ('nas-import.js', 'nas-import.css')
+NAS_IMPORT_MARKER = '<!-- nas import start -->'
+
+# Local script and stylesheet references in the page, with or without the
+# version query upstream puts on them.
+LOCAL_ASSET_REFERENCE = re.compile(
+    r'(?P<attribute>\b(?:href|src))="(?P<path>(?!https?:|//|/|#)[^"?#]+\.(?:js|css))(?:\?[^"]*)?"')
+
 BUNDLES = (
     ('source/engine/main.js', 'build/engine/o3dv.min.js', ()),
     ('source/website/index.js', 'build/website/o3dv.website.min.js',
@@ -111,21 +136,27 @@ def ensure_checkout(work_dir):
     return root
 
 
-def apply_source_edits(root):
-    path = os.path.join(root, SOURCE_REL)
+def apply_edits(root, relative, edits, what):
+    path = os.path.join(root, relative)
     with open(path, 'r', encoding='utf-8', newline='') as handle:
         # Normalise first: the checkout's core.autocrlf setting must not
         # decide whether the anchors below match.
         text = handle.read().replace('\r\n', '\n')
-    for old, new in SOURCE_EDITS:
+    for old, new in edits:
         if old not in text:
             raise SystemExit('error: %s no longer contains:\n%s\n'
-                             'Upstream changed; update SOURCE_EDITS in %s.'
-                             % (SOURCE_REL, old, os.path.basename(__file__)))
+                             'Upstream changed; update the edits in %s.'
+                             % (relative, old, os.path.basename(__file__)))
         text = text.replace(old, new, 1)
     with open(path, 'w', encoding='utf-8', newline='') as handle:
         handle.write(text)
-    print('== patched %s to load libraries locally' % SOURCE_REL)
+    print('== patched %s %s' % (relative, what))
+
+
+def apply_source_edits(root):
+    apply_edits(root, SOURCE_REL, SOURCE_EDITS, 'to load libraries locally')
+    apply_edits(root, WEBSITE_SOURCE_REL, WEBSITE_SOURCE_EDITS,
+                'to expose the website object')
 
 
 def build_bundles(root, skip_npm):
@@ -154,6 +185,61 @@ def stage_frontend(website_dir, stage):
         shutil.rmtree(stage)
     shutil.copytree(website_dir, stage)
     print('== staged frontend in %s' % stage)
+
+
+def install_nas_import(stage):
+    """Copy this repository's NAS import assets in and tag them into the page."""
+    stamps = {}
+    for name in NAS_IMPORT_ASSETS:
+        source = os.path.join(REPO_ROOT, 'webui', name)
+        if not os.path.isfile(source):
+            raise SystemExit('error: %s is missing' % source)
+        with open(source, 'rb') as handle:
+            stamps[name] = hashlib.sha1(handle.read()).hexdigest()[:10]
+        shutil.copyfile(source, os.path.join(stage, name))
+
+    index = os.path.join(stage, 'index.html')
+    with open(index, 'r', encoding='utf-8', newline='') as handle:
+        text = handle.read()
+    if NAS_IMPORT_MARKER in text:
+        raise SystemExit('error: %s already carries the NAS import block' % index)
+    if '</head>' not in text:
+        raise SystemExit('error: %s has no </head>' % index)
+    text = restamp_local_assets(stage, text)
+    block = ('    ' + NAS_IMPORT_MARKER + '\n'
+             '    <link rel="stylesheet" type="text/css" href="nas-import.css?v=%s">\n'
+             '    <script type="text/javascript" src="nas-import.js?v=%s"></script>\n'
+             '    <!-- nas import end -->\n'
+             % (stamps['nas-import.css'], stamps['nas-import.js']))
+    with open(index, 'w', encoding='utf-8', newline='') as handle:
+        handle.write(text.replace('</head>', block + '</head>', 1))
+    print('== tagged the NAS import assets into %s' % index)
+
+
+def restamp_local_assets(stage, text):
+    """Point every local script and stylesheet at its own content digest.
+
+    Upstream tags its two bundles with the release number it was built from,
+    which does not move when this repository rebuilds them, and the bundles
+    load more scripts at run time under names nothing can tag by hand. A digest
+    in the query string is what actually makes a new build a new URL, so a
+    browser that cached the previous release cannot serve the previous code.
+    """
+    digests = {}
+
+    def replace(match):
+        relative = match.group('path')
+        target = os.path.join(stage, relative.replace('/', os.sep))
+        if not os.path.isfile(target):
+            return match.group(0)
+        if relative not in digests:
+            with open(target, 'rb') as handle:
+                digests[relative] = hashlib.sha1(handle.read()).hexdigest()[:10]
+        return '%s="%s?v=%s"' % (match.group('attribute'), relative, digests[relative])
+
+    stamped = LOCAL_ASSET_REFERENCE.sub(replace, text)
+    print('== stamped %d local asset reference(s) in index.html' % len(digests))
+    return stamped
 
 
 def vendor_libraries(work_dir, stage, root):
@@ -198,6 +284,7 @@ def main():
     root = ensure_checkout(work_dir)
     apply_source_edits(root)
     stage_frontend(build_bundles(root, args.skip_npm), stage)
+    install_nas_import(stage)
     vendor_libraries(work_dir, stage, root)
     print('== %s is ready; run tools/make_webui.py --stage %s' % (stage, stage))
     return 0

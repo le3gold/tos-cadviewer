@@ -6,7 +6,10 @@ APPID="le3gold-cadviewer"
 APP_DIR="/usr/local/${APPID}"
 
 if [ "$1" = "configure" ] && [ -n "$2" ]; then
-    echo "${APPID}: upgrading from ${2} to 1.0.3"
+    # Read the version back from the package database instead of repeating it
+    # here, so this line cannot go stale on the next release.
+    NEW_VERSION="$(dpkg-query -W -f='${Version}' "${APPID}" 2>/dev/null || echo unknown)"
+    echo "${APPID}: upgrading from ${2} to ${NEW_VERSION}"
 fi
 
 # The platform creates the "${APPID}" system user from the "user" field in

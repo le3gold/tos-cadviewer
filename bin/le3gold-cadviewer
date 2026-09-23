@@ -1,24 +1,34 @@
 #!/usr/bin/python3
 """CAD Viewer - TOS 7 backend service.
 
-Serves the static web frontend over HTTP. Runs as an unprivileged systemd
-service and listens on 0.0.0.0 so the app is reachable from the LAN.
+Serves the static web frontend over HTTP, plus the NAS file API the frontend
+uses to import a model that already lives on the device. Listens on 0.0.0.0 so
+the application is reachable from the LAN.
+
+The unit deliberately runs as the account the platform installed the
+application with, which is uid 0 on TOS 7. A non-root identity cannot read
+/Volume1/@apps at all (btrfs "tmacl"), so it could not read the shared folders
+this API serves either; see init.d/le3gold-cadviewer.service.
 
 This file is part of the TOS 7 packaging of Online 3D Viewer.
 See ../licenses/NOTICE.md for attribution and a list of modifications.
 """
 
+import hashlib
+import json
 import os
 import posixpath
+import secrets
 import signal
+import shutil
 import sys
 import threading
 import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 APP_ID = 'le3gold-cadviewer'
-APP_VERSION = '1.0.3'
+APP_VERSION = '1.1.0'
 
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEBUI_DIR = os.environ.get('WEBUI_DIR', os.path.join(APP_DIR, 'webui'))
@@ -51,15 +61,154 @@ EXTRA_MIME_TYPES = {
     '.fcstd': 'application/octet-stream',
 }
 
-# Long-lived caching for the hashed build artifacts, no caching for the HTML
-# entry points and the health probe.
-CACHEABLE_SUFFIXES = ('.js', '.css', '.woff', '.woff2', '.ttf', '.svg', '.png',
-                      '.jpg', '.jpeg', '.ico', '.wasm', '.glb', '.gltf')
+# Every file in the install tree carries the same timestamp, pinned by the build
+# so that two runs produce the same archive. Last-Modified therefore cannot tell
+# one release from the next, and a client that revalidates after an upgrade
+# would get a 304 and keep running the previous bundle. Responses carry a
+# release scoped ETag instead, and every load revalidates against it.
+CACHE_CONTROL = 'no-cache'
+
+# The NAS file API. Only the shared folders are browsable, and only files the
+# viewer can import (plus the sidecars an OBJ or glTF import pulls in) are
+# listed or served.
+# Entries that never show up in the browser: dotfiles, the platform's internal
+# directories (those start with @) and the recycle bin (those start with #).
+SHARE_HIDDEN_PREFIXES = ('.', '@', '#')
+# Matches the directory name as it comes back from os.listdir('/'), so it has
+# no leading separator.
+VOLUME_PREFIX = 'Volume'
+FILE_API_PREFIX = '/api/fs/'
+SESSION_COOKIE = 'cadviewer_session'
+SESSION_TOKEN = secrets.token_urlsafe(24)
+
+MODEL_EXTENSIONS = frozenset((
+    '.3dm', '.3ds', '.3mf', '.amf', '.bim', '.brep', '.dae', '.fbx', '.fcstd',
+    '.glb', '.gltf', '.ifc', '.iges', '.igs', '.obj', '.off', '.ply', '.stl',
+    '.stp', '.step', '.wrl', '.zip'))
+SIDECAR_EXTENSIONS = frozenset((
+    '.bin', '.bmp', '.dds', '.exr', '.gif', '.hdr', '.jpeg', '.jpg', '.json',
+    '.ktx2', '.mtl', '.png', '.svg', '.tga', '.webp'))
+IMPORTABLE_EXTENSIONS = MODEL_EXTENSIONS | SIDECAR_EXTENSIONS
 
 
 def log(message):
     sys.stdout.write('[%s] %s %s\n' % (APP_ID, time.strftime('%Y-%m-%d %H:%M:%S'), message))
     sys.stdout.flush()
+
+
+class ApiError(Exception):
+    """An error the file API turns into a JSON response."""
+
+    def __init__(self, status, message):
+        Exception.__init__(self, message)
+        self.status = status
+        self.message = message
+
+
+def IsVolumeName(name):
+    """True for the bare directory names os.listdir('/') reports, Volume1 and up."""
+    return name.startswith(VOLUME_PREFIX) and name[len(VOLUME_PREFIX):].isdigit()
+
+
+def IsHiddenEntry(name):
+    """True for the names the browser must not show: dotfiles, the platform's
+    internal directories (@apps, @system, ...) and the recycle bin (#recycle)."""
+    return name.startswith(SHARE_HIDDEN_PREFIXES)
+
+
+def VolumeNumber(path):
+    """The trailing number of a volume path, so Volume10 sorts after Volume9."""
+    return int(os.path.basename(path)[len(VOLUME_PREFIX):])
+
+
+def VolumeMounts():
+    """The mounted volumes, lowest number first. Reads the real root instead of
+    assuming a fixed count, because the number of volumes differs per device."""
+    try:
+        names = os.listdir('/')
+    except OSError:
+        return []
+    volumes = []
+    for name in names:
+        if IsVolumeName(name):
+            volumes.append(os.path.join('/', name))
+    volumes.sort(key=VolumeNumber)
+    return volumes
+
+
+def VolumeLabel(path):
+    name = os.path.basename(path)
+    if IsVolumeName(name):
+        return 'Volume %d' % int(name[len(VOLUME_PREFIX):])
+    return name
+
+
+def ListRoots():
+    """The shared folders: everything at a volume root that is not hidden."""
+    roots = []
+    for volume in VolumeMounts():
+        try:
+            names = sorted(os.listdir(volume))
+        except OSError:
+            continue
+        for name in names:
+            if IsHiddenEntry(name):
+                continue
+            full = os.path.join(volume, name)
+            if os.path.isdir(full):
+                roots.append({'name': name, 'path': full, 'volume': VolumeLabel(volume)})
+    return roots
+
+
+def ResolveSharePath(path):
+    """The absolute real path if it is a shared folder or below one, else None.
+
+    Resolving first means '..' segments and symlinks that lead outside the
+    shared folders are rejected too."""
+    if not os.path.isabs(path):
+        return None
+    real = os.path.realpath(path)
+    for root in ListRoots():
+        root_real = os.path.realpath(root['path'])
+        if real == root_real or real.startswith(root_real + os.sep):
+            return real
+    return None
+
+
+def ListDirectory(wanted):
+    real = ResolveSharePath(wanted)
+    if real is None:
+        raise ApiError(403, 'Path is outside the shared folders')
+    if not os.path.isdir(real):
+        raise ApiError(404, 'Not a directory')
+    try:
+        names = sorted(os.listdir(real))
+    except OSError as error:
+        raise ApiError(403, str(error))
+
+    entries = []
+    for name in names:
+        if IsHiddenEntry(name):
+            continue
+        full = os.path.join(real, name)
+        try:
+            if os.path.isdir(full):
+                entries.append({'name': name, 'path': full, 'type': 'dir', 'size': 0})
+            elif posixpath.splitext(name)[1].lower() in MODEL_EXTENSIONS:
+                # Only formats that can be opened on their own are offered.
+                # Sidecars (.mtl, textures) are still served, but the importer
+                # asks for them by itself once the model is chosen, so listing
+                # them would only offer files that cannot open.
+                entries.append({'name': name, 'path': full, 'type': 'file',
+                                'size': os.path.getsize(full)})
+        except OSError:
+            continue
+    entries.sort(key=lambda entry: (entry['type'] != 'dir', entry['name'].lower()))
+
+    parent = os.path.dirname(real)
+    if ResolveSharePath(parent) is None:
+        parent = None
+    return {'path': real, 'name': os.path.basename(real), 'parent': parent, 'entries': entries}
 
 
 class CadViewerHandler(SimpleHTTPRequestHandler):
@@ -68,6 +217,8 @@ class CadViewerHandler(SimpleHTTPRequestHandler):
     sys_version = ''
 
     def __init__(self, *args, **kwargs):
+        self._set_session_cookie = False
+        self._head_only = False
         super().__init__(*args, directory=WEBUI_DIR, **kwargs)
 
     # -- routing -----------------------------------------------------------
@@ -75,12 +226,29 @@ class CadViewerHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self._is_health_probe():
             return self._send_health()
+        if self._serve_file_api():
+            return
+        self._mark_page_request()
         return super().do_GET()
 
     def do_HEAD(self):
         if self._is_health_probe():
             return self._send_health(head_only=True)
+        if self._serve_file_api(head_only=True):
+            return
+        self._mark_page_request()
         return super().do_HEAD()
+
+    def _strip_prefix(self, path):
+        if URL_PREFIX and (path == URL_PREFIX or path.startswith(URL_PREFIX + '/')):
+            return path[len(URL_PREFIX):] or '/'
+        return path
+
+    def _mark_page_request(self):
+        # Loading the page is what hands the browser the session cookie that
+        # the file API asks for.
+        if self._strip_prefix(urlsplit(self.path).path) in ('/', '/index.html'):
+            self._set_session_cookie = True
 
     def _is_health_probe(self):
         return urlsplit(self.path).path.rstrip('/') in ('/health', URL_PREFIX + '/health')
@@ -95,12 +263,90 @@ class CadViewerHandler(SimpleHTTPRequestHandler):
         if not head_only:
             self.wfile.write(body)
 
+    # -- NAS file API ------------------------------------------------------
+
+    def _serve_file_api(self, head_only=False):
+        path = self._strip_prefix(urlsplit(self.path).path)
+        if not path.startswith(FILE_API_PREFIX):
+            return False
+        self._head_only = head_only
+        try:
+            self._guard_file_api()
+            if path == FILE_API_PREFIX + 'roots':
+                payload = {'roots': ListRoots()}
+            elif path == FILE_API_PREFIX + 'list':
+                wanted = parse_qs(urlsplit(self.path).query).get('path', [''])[0]
+                if not wanted:
+                    raise ApiError(400, 'Missing path parameter')
+                payload = ListDirectory(wanted)
+            elif path.startswith(FILE_API_PREFIX + 'open/'):
+                # Path style on purpose: the viewer derives the file name and
+                # the extension by dropping everything after a '?', so a query
+                # string would leave the importer without a format. The caller
+                # leaves the leading separator off so the viewer still sees a
+                # readable file name and can resolve sidecar files next to it.
+                wanted = unquote(path[len(FILE_API_PREFIX + 'open/'):])
+                # A leading separator is restored when the caller left it off.
+                # os.path.isabs alone is not enough: on Windows it reports a
+                # POSIX style absolute path as relative, and prefixing that
+                # yields a UNC path, which makes the realpath call below block
+                # on a network lookup.
+                if wanted[:1] not in ('/', '\\') and not os.path.isabs(wanted):
+                    wanted = '/' + wanted
+                self._send_model(wanted)
+                return True
+            else:
+                raise ApiError(404, 'Unknown route')
+        except ApiError as error:
+            self._send_json({'error': error.message}, error.status)
+            return True
+        self._send_json(payload)
+        return True
+
+    def _guard_file_api(self):
+        # The desktop serves the application's iframe through an authenticated
+        # proxy; an externally opened application talks to this port directly
+        # and has no platform session to check. These two checks are what can
+        # be done without one: refuse requests another site made the browser
+        # send, and require the cookie this server handed out with the page.
+        site = self.headers.get('Sec-Fetch-Site')
+        if site is not None and site not in ('same-origin', 'none'):
+            raise ApiError(403, 'Cross-site requests are refused')
+        expected = '%s=%s' % (SESSION_COOKIE, SESSION_TOKEN)
+        if expected not in (self.headers.get('Cookie') or ''):
+            raise ApiError(403, 'Load the application page before using the file API')
+
+    def _send_json(self, payload, status=200):
+        body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        if not self._head_only:
+            self.wfile.write(body)
+
+    def _send_model(self, path):
+        real = ResolveSharePath(path)
+        if real is None:
+            raise ApiError(403, 'Path is outside the shared folders')
+        if not os.path.isfile(real):
+            raise ApiError(404, 'Not a file')
+        if posixpath.splitext(real)[1].lower() not in IMPORTABLE_EXTENSIONS:
+            raise ApiError(403, 'This file type cannot be imported')
+        size = os.path.getsize(real)
+        self.send_response(200)
+        self.send_header('Content-Type', self.guess_type(real))
+        self.send_header('Content-Length', str(size))
+        self.end_headers()
+        if self._head_only:
+            return
+        with open(real, 'rb') as handle:
+            shutil.copyfileobj(handle, self.wfile, 256 * 1024)
+
     # -- path handling -----------------------------------------------------
 
     def translate_path(self, path):
-        path = urlsplit(path).path
-        if URL_PREFIX and (path == URL_PREFIX or path.startswith(URL_PREFIX + '/')):
-            path = path[len(URL_PREFIX):] or '/'
+        path = self._strip_prefix(urlsplit(path).path)
         return super().translate_path(unquote(path))
 
     def guess_type(self, path):
@@ -109,15 +355,54 @@ class CadViewerHandler(SimpleHTTPRequestHandler):
             return EXTRA_MIME_TYPES[extension]
         return super().guess_type(path)
 
+    def send_head(self):
+        path = self.translate_path(self.path)
+        if os.path.isdir(path):
+            for index in ('index.html', 'index.htm'):
+                candidate = os.path.join(path, index)
+                if os.path.exists(candidate):
+                    path = candidate
+                    break
+        if os.path.isdir(path):
+            self.send_error(403, 'Directory listing is disabled')
+            return None
+        try:
+            handle = open(path, 'rb')
+            size = os.fstat(handle.fileno()).st_size
+        except OSError:
+            self.send_error(404, 'File not found')
+            return None
+        etag = '"%s"' % self._content_tag(size)
+        if self.headers.get('If-None-Match') == etag:
+            handle.close()
+            self.send_response(304)
+            self.send_header('ETag', etag)
+            self.end_headers()
+            return None
+        self.send_response(200)
+        self.send_header('Content-Type', self.guess_type(path))
+        self.send_header('Content-Length', str(size))
+        self.send_header('ETag', etag)
+        self.end_headers()
+        return handle
+
+    def _content_tag(self, size):
+        # Release and size are enough to tag a file: the installed tree never
+        # changes under a running release, and an upgrade moves the release.
+        # Hashing the payload instead would mean reading the 7.7 MB OpenCascade
+        # build on every request.
+        request_path = urlsplit(self.path).path
+        material = '%s\0%s\0%d' % (APP_VERSION, request_path, size)
+        return hashlib.sha1(material.encode('utf-8')).hexdigest()[:20]
+
     # -- headers -----------------------------------------------------------
 
     def end_headers(self):
-        request_path = urlsplit(self.path).path.lower()
-        if request_path.endswith(CACHEABLE_SUFFIXES):
-            self.send_header('Cache-Control', 'public, max-age=86400')
-        else:
-            self.send_header('Cache-Control', 'no-cache')
+        self.send_header('Cache-Control', CACHE_CONTROL)
         self.send_header('X-Content-Type-Options', 'nosniff')
+        if self._set_session_cookie:
+            self.send_header('Set-Cookie', '%s=%s; Path=/; SameSite=Strict; HttpOnly'
+                             % (SESSION_COOKIE, SESSION_TOKEN))
         super().end_headers()
 
     # -- hardening ---------------------------------------------------------

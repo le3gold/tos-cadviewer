@@ -1,0 +1,224 @@
+/*
+ * NAS import dialog for the TOS 7 packaging of Online 3D Viewer.
+ * Colours come from the viewer's own theme variables, so the dialog follows
+ * the light and dark toggle without extra work.
+ */
+
+.o3dv_nas_menu {
+    position: fixed;
+    z-index: 10000;
+    min-width: 230px;
+    padding: 4px 0;
+    background: var(--ov_dialog_background_color, #ffffff);
+    color: var(--ov_dialog_foreground_color, #000000);
+    border: 1px solid var(--ov_border_color, #dddddd);
+    box-shadow: var(--ov_shadow, 0 0 10px #cccccc);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.o3dv_nas_menu_item {
+    padding: 8px 16px;
+    white-space: nowrap;
+}
+
+.o3dv_nas_menu_item:hover {
+    background: var(--ov_hover_color, #c9e5f8);
+    color: var(--ov_hover_text_color, #3393bd);
+}
+
+.o3dv_nas_overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.o3dv_nas_panel {
+    display: flex;
+    flex-direction: column;
+    width: 720px;
+    max-width: 92vw;
+    height: 560px;
+    max-height: 86vh;
+    background: var(--ov_dialog_background_color, #ffffff);
+    color: var(--ov_dialog_foreground_color, #000000);
+    border: 1px solid var(--ov_border_color, #dddddd);
+    box-shadow: var(--ov_shadow, 0 0 10px #cccccc);
+    font-size: 14px;
+}
+
+.o3dv_nas_header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--ov_border_color, #dddddd);
+}
+
+.o3dv_nas_title {
+    flex: 1;
+    font-size: 16px;
+}
+
+.o3dv_nas_close {
+    padding: 0 4px;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.o3dv_nas_bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--ov_dialog_control_border_color, #e1e1e1);
+}
+
+.o3dv_nas_up {
+    padding: 4px 12px;
+    background: none;
+    color: var(--ov_outline_button_text_color, #3393bd);
+    border: 1px solid var(--ov_outline_button_color, #3393bd);
+    cursor: pointer;
+}
+
+.o3dv_nas_up:hover:enabled {
+    background: var(--ov_outline_button_hover_color, #c9e5f8);
+}
+
+.o3dv_nas_up:disabled {
+    color: var(--ov_disabled_foreground_color, #cccccc);
+    border-color: var(--ov_disabled_foreground_color, #cccccc);
+    cursor: default;
+}
+
+.o3dv_nas_path {
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    opacity: 0.75;
+}
+
+.o3dv_nas_list {
+    flex: 1;
+    overflow: auto;
+    padding: 4px 0;
+}
+
+.o3dv_nas_group {
+    padding: 8px 16px 4px 16px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.6;
+}
+
+.o3dv_nas_row {
+    display: flex;
+    align-items: center;
+    padding: 6px 16px;
+    cursor: pointer;
+}
+
+.o3dv_nas_row:hover {
+    background: var(--ov_hover_color, #c9e5f8);
+    color: var(--ov_hover_text_color, #3393bd);
+}
+
+.o3dv_nas_row.selected {
+    background: var(--ov_treeview_selected_color, #eeeeee);
+}
+
+.o3dv_nas_icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 10px;
+    flex: none;
+}
+
+.o3dv_nas_icon_dir {
+    background: var(--ov_selected_icon_color, #3393bd);
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/></svg>") center / contain no-repeat;
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/></svg>") center / contain no-repeat;
+}
+
+.o3dv_nas_icon_file {
+    background: var(--ov_light_icon_color, #838383);
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M6 2h8l5 5v15H6z'/></svg>") center / contain no-repeat;
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M6 2h8l5 5v15H6z'/></svg>") center / contain no-repeat;
+}
+
+.o3dv_nas_name {
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.o3dv_nas_size {
+    flex: none;
+    margin-left: 16px;
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+.o3dv_nas_empty {
+    padding: 24px 16px;
+    opacity: 0.7;
+}
+
+.o3dv_nas_footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--ov_border_color, #dddddd);
+}
+
+.o3dv_nas_hint {
+    flex: 1;
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+.o3dv_nas_buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.o3dv_nas_button {
+    padding: 7px 20px;
+    background: none;
+    color: var(--ov_outline_button_text_color, #3393bd);
+    border: 1px solid var(--ov_outline_button_color, #3393bd);
+    cursor: pointer;
+}
+
+.o3dv_nas_button:hover:enabled {
+    background: var(--ov_outline_button_hover_color, #c9e5f8);
+}
+
+.o3dv_nas_button:disabled {
+    color: var(--ov_disabled_foreground_color, #cccccc);
+    border-color: var(--ov_disabled_foreground_color, #cccccc);
+    cursor: default;
+}
+
+.o3dv_nas_button_primary:enabled {
+    background: var(--ov_button_color, #3393bd);
+    color: var(--ov_button_text_color, #ffffff);
+    border-color: var(--ov_button_color, #3393bd);
+}
+
+.o3dv_nas_button_primary:hover:enabled {
+    background: var(--ov_button_hover_color, #146a8f);
+    border-color: var(--ov_button_hover_color, #146a8f);
+}

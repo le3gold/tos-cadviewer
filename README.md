@@ -19,6 +19,10 @@ le3gold-cadviewer/
 ├── licenses/                  # Upstream and third-party license texts
 │   └── NOTICE.md              # Attribution and list of modifications
 ├── DEBIAN/                    # control + lifecycle scripts
+├── webui/                     # Source of the files this repository adds to the frontend
+│   ├── nas-import.js          # "Import from the NAS" menu, browser and dialog
+│   └── nas-import.css
+├── docs/superpowers/specs/    # Design notes, including the file API and its guards
 ├── webui.bz2                  # Frontend bundle (generated, not in git)
 ├── build/                     # Build output (generated, not in git)
 └── tools/
@@ -48,7 +52,7 @@ python tools/make_webui.py --stage D:/work/_vendor/webui_stage --out webui.bz2
 
 # 3. Build and check the package.
 python tools/build_deb.py
-python tools/verify_deb.py build/le3gold-cadviewer_1.0.3_x86_64.deb
+python tools/verify_deb.py build/le3gold-cadviewer_1.1.0_x86_64.deb
 ```
 
 ### Release asset naming
@@ -105,6 +109,44 @@ loadable `index.html` and the OCCT WebAssembly decoder.
       already listed in the TOS App Center.
 - [ ] Run `bash -n DEBIAN/postinst DEBIAN/prerm DEBIAN/postrm` on a Linux host.
 - [ ] Test install/uninstall with `dpkg -i` and `dpkg --purge`.
+
+## Importing a model that already lives on the NAS
+
+The toolbar's import button offers two entries: **Import from this computer**,
+which is upstream's own file dialog, and **Import from the NAS**, which opens a
+browser for the shared folders. A model picked there is streamed straight from
+disk into the viewer - nothing is copied and no temporary file is created, which
+is what makes a multi-hundred-megabyte STEP file practical.
+
+The platform has a NAS file picker of its own (the one the App Center install
+wizard uses), but it is a component of the desktop page and an externally opened
+application is a different origin, so an application in this mode cannot reach
+it. The backend therefore serves a small file API of its own:
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/fs/roots` | the shared folders, grouped by volume |
+| `GET /api/fs/list?path=<abs>` | one directory level |
+| `GET /api/fs/open/<share path>` | the file bytes, streamed |
+
+Scope and guards, in short: only the first level under each `/VolumeN` is
+exposed - never a volume root, never `@apps` - every path is `realpath`
+resolved and must stay under an allowed root (which also defeats `..` and
+symlinks), only extensions the viewer can import are served, cross-site requests
+are refused, the page hands out a session cookie the API requires, and directory
+listings are off. The residual risk is honest and unchanged by the guards: in
+external-open mode the platform provides no authentication for the port, so
+anyone who can reach it on the LAN can load the page and browse the shares.
+
+Responses carry a release scoped `ETag` and are `no-cache`, and the build
+stamps every local script and stylesheet reference in `index.html` with its own
+content digest. The installed tree carries a pinned timestamp, so
+`Last-Modified` cannot tell one release from the next; without those two
+measures a browser keeps the previous frontend after an upgrade.
+
+`docs/superpowers/specs/2026-09-23-nas-file-import-design.md` has the full
+design, including why the file URL is path shaped and why its segments are
+encoded one by one.
 
 ## Open question for the review team
 
