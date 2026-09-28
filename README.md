@@ -10,6 +10,7 @@ Packaging type: **Deb, single-package mode, WebUI External Open.**
 ```
 le3gold-cadviewer/
 ├── config.ini                 # TOS application metadata
+├── PRIVACY.md                 # Privacy policy (review item C3)
 ├── le3gold-cadviewer.lang             # 14-language store listing text
 ├── le3gold-cadviewer.env              # Environment variables for the systemd unit
 ├── bin/le3gold-cadviewer              # Backend: Python 3 static file server
@@ -52,7 +53,7 @@ python tools/make_webui.py --stage D:/work/_vendor/webui_stage --out webui.bz2
 
 # 3. Build and check the package.
 python tools/build_deb.py
-python tools/verify_deb.py build/le3gold-cadviewer_1.1.4_x86_64.deb
+python tools/verify_deb.py build/le3gold-cadviewer_1.1.5_x86_64.deb
 ```
 
 ### Release asset naming
@@ -79,7 +80,8 @@ fixed timestamp as well, so rebuilding the same sources yields a byte-identical
 - `config.ini` parses as JSON and carries every field the guide requires.
 - `id`, `version`, `package`, `system_id` and `user` agree with
   `DEBIAN/control` and `init.d/<system_id>.service`.
-- `open_path` and `type` are not both set, and `path` uses `${ip}`.
+- `open_path` and `type` are not both set, and `path` is the portal route
+  `/<appid>/` that `nginx/<appid>.conf` serves.
 - The icon exists at the path `config.ini` names, and `webui.bz2` and
   `nginx/le3gold-cadviewer.conf` are present.
 - No text file ships with CRLF line endings.
@@ -102,13 +104,17 @@ loadable `index.html` and the OCCT WebAssembly decoder.
       the packager, `lee3gold`. Neither may carry the platform vendor's name: an
       application shipped with `auth = "TerraMaster"` is credited to TerraMaster
       instead of to its author.
+- [x] `PRIVACY.md` is published and `config.ini` `help` links to it, so the
+      privacy policy has a public URL (review items C3, C7 and C8).
 - [ ] Create the public repository, attach `le3gold-cadviewer_<version>_x86_64.deb`
       and its `.sha256` as Release assets, and tag the Release with the same
       string as `config.ini.version` / `DEBIAN/control` `Version`.
-- [ ] Verify TCP port 8686 does not conflict with an application that is
+- [ ] Verify TCP port 17868 does not conflict with an application that is
       already listed in the TOS App Center.
 - [ ] Run `bash -n DEBIAN/postinst DEBIAN/prerm DEBIAN/postrm` on a Linux host.
 - [ ] Test install/uninstall with `dpkg -i` and `dpkg --purge`.
+- [ ] Confirm the service runs as its own account: `systemctl show -p User -p
+      Group <appid>` and `ps -eo user,args | grep <appid>`.
 
 ## Importing a model that already lives on the NAS
 
@@ -148,27 +154,33 @@ measures a browser keeps the previous frontend after an upgrade.
 design, including why the file URL is path shaped and why its segments are
 encoded one by one.
 
-## Open question for the review team
+## Why `path` is the portal route
 
-The guide gives two different values for `config.ini.path` in Deb WebUI
-external-open mode:
+Version 1.1.4 shipped `"path": "http://${ip}:8686"` and the store review
+rejected it (item C21). The guide does contain that value: the field reference
+(8.4.2), the minimal configuration (8.3.2) and Template 2 (8.4.1) all show it.
+But the "path field value quick reference" table at the end of 8.4.3, and the
+two core requirements printed directly above the templates, both say `path` must
+correspond to the nginx route. On the device only the route reading works end to
+end: with `http://${ip}:8686` the platform never publishes
+`/etc/nginx/conf.d/<appid>.conf`, so the application is reachable only on its
+bare port, which the guide forbids pointing `path` at.
 
-- the field reference (8.4.2), the minimal configuration (8.3.2) and
-  Template 2 (8.4.1) all use `http://${ip}:8686`, the backend port directly;
-- the "path field value quick reference" table at the end of 8.4.3 uses
-  `/<app_id>/`, the platform nginx route.
+The package therefore ships three files that have to agree, and a mismatch in
+any one of them breaks the route:
 
-This package follows the first reading, because three of the four places agree
-with it and it matches the `open_path: true` example. `nginx/le3gold-cadviewer.conf`
-is shipped as well, so the nginx route works too. If the review team prefers
-`"/le3gold-cadviewer/"`, that one line in `config.ini` is the only change needed.
+| File | Field |
+| --- | --- |
+| `config.ini` | `"path": "/le3gold-cadviewer/"` |
+| `nginx/le3gold-cadviewer.conf` | `location /le3gold-cadviewer/` |
+| `le3gold-cadviewer.env` | `URL_PREFIX=/le3gold-cadviewer` |
 
-Related, a smaller question: the permission model (10.4) names `site/` as the
-runtime directory for Web UI files, while the package structure (8.3.2) and the
-lifecycle scripts only speak of `webui.bz2`. This package extracts the frontend
-into `<app_dir>/webui/`, which is where `le3gold-cadviewer.env` and `bin/le3gold-cadviewer`
-expect it. Renaming it to `site/` is a one-line change in those three files.
-
+The platform does not load the snippet out of `/usr/local/<appid>/nginx/` on its
+own. Guide 8.3.2 implies that it does ("the platform Nginx `include` directive
+loads configurations in alphabetical order"), the official `postrm` template
+deletes `/etc/nginx/conf.d/<appid>.conf`, and every route that actually exists on
+the device has a file or a symlink there. `postinst` copies the snippet in and
+`prerm` removes it.
 
 The third question is about attribution, and it is the one that cannot be worked
 around at runtime. The guide describes both fields as the name shown in the App
@@ -199,34 +211,63 @@ application copies this pattern.
 
 | Path | Purpose |
 | --- | --- |
-| `/usr/local/le3gold-cadviewer/` | Install directory (read-only at runtime) |
-| `/usr/local/le3gold-cadviewer/webui/` | Frontend, extracted from `webui.bz2` at install time |
-| `/var/lib/le3gold-cadviewer/` | Application runtime state |
-| `/var/log/le3gold-cadviewer/` | **Not used.** `/var/log` is a symlink to the tmpfs `/tmp/log`, so the directory is never created for the application and anything written there is erased at every reboot. Logs go to the journal instead |
-| TCP 8686 | Backend HTTP port (see `important` in `le3gold-cadviewer.lang`) |
+| `/usr/local/le3gold-cadviewer/` | Install directory, a symlink into `/Volume*/@apps/` |
+| `/var/lib/le3gold-cadviewer/runtime/` | What the service actually executes: `bin/` plus the extracted frontend |
+| `/var/lib/le3gold-cadviewer/runtime/webui/` | Frontend, extracted from `webui.bz2` at install time |
+| `/var/lib/le3gold-cadviewer/install.log` | Lifecycle-script log, for when the `dpkg -i` output is gone |
+| `/Volume1/CADViewer/` | The application shared folder. **Never deleted**, not even on purge |
+| `/etc/nginx/conf.d/le3gold-cadviewer.conf` | Portal route, installed by `postinst` |
+| `/var/log/le3gold-cadviewer/` | **Not used.** `/var/log` is a symlink to the tmpfs `/tmp/log`, so anything written there is erased at every reboot. Logs go to the journal instead |
+| TCP 17868 | Backend HTTP port (see `important` in `le3gold-cadviewer.lang`) |
 
 `webui.bz2` is flat: `index.html` sits at the root of the archive, which is how
 the guide builds it (`tar -cjf webui.bz2 -C webui/ .`). `postinst` extracts it
-into `webui/` and `bin/le3gold-cadviewer` serves it from there.
+into `runtime/webui/` and `bin/le3gold-cadviewer` serves it from there.
 
-## Why the unit declares no `User=`/`Group=`
+## Running as a non-root account (review item V1)
 
-The guide marks `User=<appid>` and `Group=<appid>` as required (8.13.2), but the
-platform never creates a group of that name: a unit that asks for it dies with
-`Failed to determine group credentials` / `216/GROUP` and restart-loops until
-systemd gives up with "Start request repeated too quickly". Creating the group by
-hand only moves the failure to `200/CHDIR`, because the application's own files
-live under `/Volume1/@apps/<appid>` (reached through the platform-created
-`/usr/local/<appid>` symlink) and that btrfs volume is mounted with `tmacl`,
-which denies non-root users - the application's own user included - all access.
-Of the 30 applications installed on the reference TNAS, not one uses a dedicated
-identity, and the only approved third-party application does not set `User=`
-either.
+The guide marks `User=<appid>` and `Group=<appid>` as required (8.13.2), and
+running as root is an automatic rejection (10.9), so review item V1 rejects a
+package whose service runs as root. Version 1.1.4 ran as root, because on TOS 7
+an unprivileged account could not read a single one of its own files:
 
-The unit therefore keeps the default identity and isolates the service with
-`ProtectSystem=strict`, `NoNewPrivileges=true`, `ProtectHome`, `PrivateTmp` and
-the rest of the hardening block. `tools/verify_deb.py` rejects an explicit
-`User=<appid>`/`Group=<appid>` and `tools/build_deb.py` refuses to build one.
+- `/Volume*` is mounted with `tmacl`, a rich ACL that is deny-by-default at
+  every level and does not fall back to the POSIX mode bits. Measured on TOS
+  7.0.1201, an account with no entry on a directory is refused even when that
+  directory is mode 755, and `tmacltool get-perm /Volume1 <uid>` reports
+  `max_permission: -------------`.
+- `/usr/local/<appid>` is a symlink into `/Volume1/@apps/<appid>`, so the install
+  tree inherits that. The service account cannot read its own `bin/<appid>`.
+- The platform creates the user named by `config.ini` `user` but no group of the
+  same name, and the official unit template asks for `Group=<appid>`, which
+  systemd refuses with `216/GROUP`.
+
+The fix is to run from outside the volume. `postinst` stages the executable, the
+environment file and the extracted frontend into `/var/lib/<appid>/`, which is on
+the system volume and therefore not under `tmacl`, owns that tree to the account,
+and creates the missing group. The unit executes that copy. The package also
+grants the account traversal (`r-x`) on each volume root and read-write on its own
+shared folder, which is the minimum needed to reach a shared folder the
+administrator has opened to it.
+
+Verified on TOS 7.0.1201, both as an upgrade and as a clean install:
+
+```
+$ ps -eo user,args | grep le3gold-cadviewer
+le3gold+  ...  /usr/bin/python3 /var/lib/le3gold-cadviewer/runtime/bin/le3gold-cadviewer
+$ systemctl show -p User -p Group le3gold-cadviewer
+User=le3gold-cadviewer
+Group=le3gold-cadviewer
+```
 
 Logs go to the journal (`journalctl -u le3gold-cadviewer`), never to
 `/var/log/<appid>`.
+
+## Privacy
+
+`PRIVACY.md` is the full policy, and `config.ini` `help` links to it so the store
+listing has a public URL (review items C3, C7 and C8). In short: the application
+makes no outbound network connection, bundles no analytics and calls no
+third-party service. The only network traffic is the HTTP request the browser
+makes to the TNAS itself, and the only files it reads are the shared folders the
+administrator has opened.

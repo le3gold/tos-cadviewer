@@ -43,6 +43,9 @@ PAYLOAD_FILES = (
     ('le3gold-cadviewer.lang', 0o644),
     ('le3gold-cadviewer.env', 0o644),
     ('README.md', 0o644),
+    # Ships the privacy policy inside the package so review item C3 can be
+    # satisfied from config.ini's help link alone.
+    ('PRIVACY.md', 0o644),
     ('bin/le3gold-cadviewer', 0o755),
 )
 PAYLOAD_DIRS = (
@@ -231,8 +234,12 @@ def preflight(root, config, control_text, control_fields):
         errors.append('config.ini open_path must be true (WebUI external open)')
     if 'type' in config:
         errors.append('config.ini must not set "type" together with "open_path"')
-    if '${ip}' not in str(config.get('path', '')):
-        errors.append('config.ini path must use the ${ip} placeholder')
+    # The store opens the app through the platform portal, so `path` has to be
+    # the nginx route the package installs, not a direct host:port URL. Guide
+    # 08 shows both forms, but the http://${ip}:8686 form bypasses the portal
+    # and failed review item C21.
+    if str(config.get('path', '')) != '/%s/' % APPID:
+        errors.append('config.ini path must be the portal route "/%s/"' % APPID)
     if not config.get('category'):
         errors.append('config.ini needs at least one category')
     elif len(config['category']) > 3:
@@ -254,22 +261,21 @@ def preflight(root, config, control_text, control_fields):
     if service is None:
         errors.append('system_id %r has no init.d/%s.service' % (system_id, system_id))
     else:
-        # The guide marks User=<appid> and Group=<appid> as required, but the
-        # platform creates only the user: no group named <appid> exists, so
-        # systemd aborts with 216/GROUP. Creating the group by hand only moves
-        # the failure to 200/CHDIR, because the application's files live under
-        # /Volume1/@apps/<appid> and that btrfs volume is mounted with `tmacl`,
-        # which denies non-root users all access - the application's own user
-        # included. Every application installed on the reference TNAS runs as
-        # root, so an explicit identity is a defect, not a compliance item.
+        # Review item V1 requires a non-root service, so the unit must declare
+        # the identity the platform provisioned - and the package has to run
+        # from a path that identity can actually read. /Volume1 is mounted with
+        # tmacl, which denies non-root users, the app user included, even its
+        # own /Volume1/@apps/<appid> tree; postinst therefore stages the runtime
+        # in /var/lib/<appid>/runtime. See docs/PACKAGING-NOTES.md.
         uncommented = re.sub(r'(?mi)^\s*#.*$', '', service)
         for directive in ('User', 'Group'):
             match = re.search(r'(?mi)^\s*%s\s*=\s*(\S+)\s*$' % directive, uncommented)
-            if match and match.group(1) == config.get('user'):
-                errors.append('systemd unit sets %s=%s, but the platform creates no such group '
-                              '(systemd fails with 216/GROUP, and the app user cannot read '
-                              '/Volume1/@apps anyway): leave the identity unset'
-                              % (directive, match.group(1)))
+            if match is None:
+                errors.append('systemd unit must set %s=<appid> so the service does not '
+                              'run as root (review item V1)' % directive)
+            elif match.group(1) != config.get('user'):
+                errors.append('systemd unit sets %s=%s, but config.ini user is %r'
+                              % (directive, match.group(1), config.get('user')))
         if 'ProtectSystem=strict' not in service:
             warnings.append('systemd unit should set ProtectSystem=strict')
         if 'NoNewPrivileges=true' not in service:

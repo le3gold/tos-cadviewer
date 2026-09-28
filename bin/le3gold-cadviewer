@@ -2,13 +2,21 @@
 """CAD Viewer - TOS 7 backend service.
 
 Serves the static web frontend over HTTP, plus the NAS file API the frontend
-uses to import a model that already lives on the device. Listens on 0.0.0.0 so
-the application is reachable from the LAN.
+uses to import a model that already lives on the device.
 
-The unit deliberately runs as the account the platform installed the
-application with, which is uid 0 on TOS 7. A non-root identity cannot read
-/Volume1/@apps at all (btrfs "tmacl"), so it could not read the shared folders
-this API serves either; see init.d/le3gold-cadviewer.service.
+The service runs as the dedicated unprivileged account named in config.ini
+("user"), like every other TOS 7 application. Two consequences shape this file:
+
+* It is started from /var/lib/<appid>/runtime, not from the install tree. The
+  install tree lives under /Volume*/@apps, which TerraMaster's rich ACL
+  ("tmacl") denies to unprivileged users at every directory level, so an
+  unprivileged process cannot even read its own binary there. See
+  init.d/le3gold-cadviewer.service for the measurements.
+* The NAS file API can only read shared folders this account has been granted.
+  Folders it cannot open are left out of the listing rather than offered and
+  then failing when clicked. DEBIAN/postinst creates the application's own
+  shared folder and adds the volume-level traversal entry that the platform's
+  documentation assumes is already in place.
 
 This file is part of the TOS 7 packaging of Online 3D Viewer.
 See ../licenses/NOTICE.md for attribution and a list of modifications.
@@ -28,12 +36,12 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlsplit
 
 APP_ID = 'le3gold-cadviewer'
-APP_VERSION = '1.1.4'
+APP_VERSION = '1.1.5'
 
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEBUI_DIR = os.environ.get('WEBUI_DIR', os.path.join(APP_DIR, 'webui'))
 LISTEN_HOST = os.environ.get('LISTEN_HOST', '0.0.0.0')
-LISTEN_PORT = int(os.environ.get('LISTEN_PORT', '8686'))
+LISTEN_PORT = int(os.environ.get('LISTEN_PORT', '17868'))
 URL_PREFIX = os.environ.get('URL_PREFIX', '/' + APP_ID).rstrip('/')
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
@@ -144,7 +152,13 @@ def VolumeLabel(path):
 
 
 def ListRoots():
-    """The shared folders: everything at a volume root that is not hidden."""
+    """The shared folders this account may actually open.
+
+    Enumerating a volume is cheap, but opening a folder the account has not
+    been granted is not: TerraMaster's tmacl refuses it, and offering such a
+    folder would only produce an error once the user clicks it. Only folders
+    that can be listed are returned. Shared folders an administrator grants to
+    the application account appear here automatically."""
     roots = []
     for volume in VolumeMounts():
         try:
@@ -155,8 +169,14 @@ def ListRoots():
             if IsHiddenEntry(name):
                 continue
             full = os.path.join(volume, name)
-            if os.path.isdir(full):
-                roots.append({'name': name, 'path': full, 'volume': VolumeLabel(volume)})
+            try:
+                if not os.path.isdir(full):
+                    continue
+                if not os.access(full, os.R_OK | os.X_OK):
+                    continue
+            except OSError:
+                continue
+            roots.append({'name': name, 'path': full, 'volume': VolumeLabel(volume)})
     return roots
 
 
@@ -428,8 +448,21 @@ def main():
         log('ERROR: webui directory not found: %s' % WEBUI_DIR)
         return 1
 
-    log('starting on %s:%d (webui=%s, prefix=%s)' % (LISTEN_HOST, LISTEN_PORT, WEBUI_DIR, URL_PREFIX))
-    httpd = CadViewerServer((LISTEN_HOST, LISTEN_PORT), CadViewerHandler)
+    try:
+        identity = 'uid=%d gid=%d' % (os.getuid(), os.getgid())
+    except AttributeError:
+        identity = 'uid/gid unavailable'
+    log('starting on %s:%d (%s, webui=%s, prefix=%s)'
+        % (LISTEN_HOST, LISTEN_PORT, identity, WEBUI_DIR, URL_PREFIX))
+    try:
+        httpd = CadViewerServer((LISTEN_HOST, LISTEN_PORT), CadViewerHandler)
+    except OSError as error:
+        log('ERROR: cannot bind %s:%d - %s' % (LISTEN_HOST, LISTEN_PORT, error))
+        log('ERROR: the port is already in use. The platform reserves 22, 80, 443, '
+            '8181 and 5050, and each application must use a port of its own; '
+            'change LISTEN_PORT here and in nginx/le3gold-cadviewer.conf together.')
+        return 1
+    log('listening on %s:%d' % (LISTEN_HOST, LISTEN_PORT))
 
     stop = threading.Event()
 

@@ -1,43 +1,97 @@
 #!/bin/bash
 # TOS 7 post-install script for CAD Viewer.
+#
+# Everything here exists because of one measured property of TOS 7: the install
+# tree at /Volume*/@apps/<appid> is guarded by TerraMaster's rich ACL ("tmacl",
+# the btrfs mount option behind /Volume*), which is DENY BY DEFAULT at every
+# directory level and does not fall back to the POSIX mode bits. On a real TNAS
+# running TOS 7.0.1201 an unprivileged account cannot even read its own binary:
+#
+#   $ tmacltool get-perm /Volume1 <app uid>   -> max_permission: -------------
+#   $ su -s /bin/sh <appid> -c 'ls /Volume1/@apps'          -> Permission denied
+#   $ su -s /bin/sh <appid> -c 'wc -c /usr/local/<appid>/bin/<appid>'
+#                                                           -> Permission denied
+#
+# Since guide 10.3 forbids running the service as root, this script stages the
+# parts the service must read into /var/lib/<appid>/runtime (the system volume
+# carries no tmacl entries) and grants the account the minimum ACL entries it
+# needs to reach the shared folders it is allowed to open. The repository's
+# docs/PACKAGING-NOTES.md records the measurements behind each step.
 set -e
 
 APPID="le3gold-cadviewer"
-APP_DIR="/usr/local/${APPID}"
+APP_ROOT="/usr/local/${APPID}"
+DATA_ROOT="/var/lib/${APPID}"
+RUNTIME="${DATA_ROOT}/runtime"
+SHARE_FOLDER="CADViewer"
+NGINX_ACTING="/etc/nginx/conf.d/${APPID}.conf"
+UNIT_DST="/etc/systemd/system/${APPID}.service"
+LOG="${DATA_ROOT}/install.log"
+
+say() {
+    echo "${APPID}: $*"
+    mkdir -p "${DATA_ROOT}" 2>/dev/null || true
+    echo "$(date '+%F %T') $*" >> "${LOG}" 2>/dev/null || true
+}
 
 if [ "$1" = "configure" ] && [ -n "$2" ]; then
-    # Read the version back from the package database instead of repeating it
-    # here, so this line cannot go stale on the next release.
+    # Read the previous version back from the package database instead of
+    # repeating it here, so this line cannot go stale on the next release.
     NEW_VERSION="$(dpkg-query -W -f='${Version}' "${APPID}" 2>/dev/null || echo unknown)"
-    echo "${APPID}: upgrading from ${2} to ${NEW_VERSION}"
+    say "upgrading from $2 to ${NEW_VERSION}"
 fi
 
-# The platform creates the "${APPID}" system user from the "user" field in
-# config.ini while installing, so this script must not create it (guide 8.14
-# and 10.3). The chown calls are best-effort for the same reason: if the
-# account does not exist yet, the platform's own ownership rules apply.
-# Only the state directory: the unit does not declare /var/log writable,
-# because /var/log is a symlink to the tmpfs /tmp/log on TOS 7.
-mkdir -p "/var/lib/${APPID}"
-chown "${APPID}:${APPID}" "/var/lib/${APPID}" 2>/dev/null || true
-chmod 0750 "/var/lib/${APPID}"
+if [ "$1" = "configure" ]; then
 
-# Extract the frontend bundle: webui.bz2 -> <APP_DIR>/webui
-#
-# webui.bz2 is flat - index.html sits at the root of the archive, the way the
-# TOS 7 guide builds it (tar -cjf webui.bz2 -C webui/ .). It is extracted into
-# the webui/ subdirectory here so that the platform's own extraction, if it
-# happens, and this one cannot collide.
-if [ -f "${APP_DIR}/webui.bz2" ]; then
-    python3 - "${APP_DIR}" <<'PYEOF'
+    # 1. The dedicated group.
+    #
+    #    The unit asks for Group=<appid>. The platform creates the user from
+    #    config.ini's "user" field but, on the builds measured here, gives it
+    #    "allusers" as its primary group and never creates a group named after
+    #    the application; a unit naming a group that does not exist dies with
+    #    "Failed to determine group credentials" (status 216/GROUP) and then
+    #    restart-loops. The platform owns the user (guide 10.3 forbids creating
+    #    it), so this only fills in the group when it is really absent.
+    if ! getent group "${APPID}" >/dev/null 2>&1; then
+        groupadd "${APPID}" 2>/dev/null || true
+        say "created missing group ${APPID}"
+    fi
+
+    # 2. Staged runtime.
+    #
+    #    Refreshed on every install, so an upgrade always carries the current
+    #    executable and frontend. The account owns it; nothing else may write.
+    mkdir -p "${RUNTIME}/bin" "${DATA_ROOT}/data"
+    chmod 0750 "${DATA_ROOT}" "${DATA_ROOT}/data"
+    chmod 0755 "${RUNTIME}" "${RUNTIME}/bin"
+
+    if [ -f "${APP_ROOT}/bin/${APPID}" ]; then
+        install -m 0755 -o "${APPID}" -g "${APPID}" \
+            "${APP_ROOT}/bin/${APPID}" "${RUNTIME}/bin/${APPID}" 2>/dev/null \
+            || { cp -f "${APP_ROOT}/bin/${APPID}" "${RUNTIME}/bin/${APPID}"; chmod 0755 "${RUNTIME}/bin/${APPID}"; }
+    else
+        say "ERROR: ${APP_ROOT}/bin/${APPID} is missing"
+    fi
+
+    if [ -f "${APP_ROOT}/${APPID}.env" ]; then
+        install -m 0644 "${APP_ROOT}/${APPID}.env" "${RUNTIME}/${APPID}.env" 2>/dev/null \
+            || cp -f "${APP_ROOT}/${APPID}.env" "${RUNTIME}/${APPID}.env"
+    fi
+
+    # Frontend: webui.bz2 -> ${RUNTIME}/webui.
+    #
+    # webui.bz2 is flat - index.html sits at the root of the archive, the way
+    # the TOS 7 guide builds it (tar -cjf webui.bz2 -C webui/ .).
+    if [ -f "${APP_ROOT}/webui.bz2" ]; then
+        python3 - "${APP_ROOT}" "${RUNTIME}" <<'PYEOF'
 import os
 import shutil
 import sys
 import tarfile
 
-app_dir = sys.argv[1]
+app_dir, runtime = sys.argv[1], sys.argv[2]
 archive = os.path.join(app_dir, 'webui.bz2')
-target = os.path.join(app_dir, 'webui')
+target = os.path.join(runtime, 'webui')
 
 with tarfile.open(archive, 'r:bz2') as tar:
     for member in tar.getmembers():
@@ -51,21 +105,104 @@ if os.path.isdir(target):
     shutil.rmtree(target)
 with tarfile.open(archive, 'r:bz2') as tar:
     tar.extractall(target)
-print('webui extracted to %s' % target)
+print('webui staged to %s' % target)
 PYEOF
+    fi
+
+    chown -R "${APPID}:${APPID}" "${RUNTIME}" 2>/dev/null || true
+    find "${RUNTIME}" -type d -exec chmod 0755 {} + 2>/dev/null || true
+    find "${RUNTIME}" -type f -exec chmod 0644 {} + 2>/dev/null || true
+    chmod 0755 "${RUNTIME}/bin/${APPID}" 2>/dev/null || true
+    chown "${APPID}:${APPID}" "${DATA_ROOT}" "${DATA_ROOT}/data" 2>/dev/null || true
+
+    # 3. The application's own shared folder (guide 10.6.1, recommended).
+    #
+    #    config.ini declares share_folders, so the platform creates this for a
+    #    store installation; the call below covers a manual "dpkg -i" and
+    #    returns the path either way. -owner tells the platform the application
+    #    account owns the folder.
+    SHARE_PATH=""
+    if [ -x /usr/sbin/ter_share_add ]; then
+        SHARE_PATH="$(/usr/sbin/ter_share_add -name "${SHARE_FOLDER}" -owner "${APPID}" 2>/dev/null || true)"
+    fi
+
+    # 4. tmacl entries: the minimum this account needs.
+    #
+    #    4a. Traversal on the volume roots.
+    #
+    #        Every shared folder carries its own ACL for the accounts that may
+    #        open it (the platform propagates them down the tree), but reaching
+    #        one requires an entry at every level above it, and the volume root
+    #        has none for this account - measured: tmacltool get /Volume1 lists
+    #        entries for postgres and other applications only. Without this,
+    #        even a folder the administrator has explicitly shared with the
+    #        application stays unreachable.
+    #
+    #        "r-x" and no inheritance: this grants the ability to list and enter
+    #        the volume root, and nothing inside it. Read authority on a folder
+    #        comes from that folder's own entry (4b), or from the administrator
+    #        granting the application access in TOS.
+    if command -v tmacltool >/dev/null 2>&1; then
+        for VOL in /Volume[0-9]*; do
+            [ -d "${VOL}" ] || continue
+            tmacltool modify "${VOL}" "user:${APPID}:allow:r-x:--" >/dev/null 2>&1 \
+                || say "WARNING: could not grant ${APPID} traversal on ${VOL}"
+        done
+    else
+        say "WARNING: tmacltool not found; shared folder access may be refused"
+    fi
+
+    #    4b. Read-write on the application's own folder, inherited so files the
+    #        application creates stay reachable to it. "fd" = file and
+    #        directory inheritance.
+    if [ -n "${SHARE_PATH}" ]; then
+        if command -v tmacltool >/dev/null 2>&1; then
+            tmacltool modify "${SHARE_PATH}" \
+                "user:${APPID}:allow:rwxpdDaARWc:fd" >/dev/null 2>&1 \
+                || say "WARNING: could not grant ${APPID} access to ${SHARE_PATH}"
+        fi
+        # Non-recursive: an upgrade must not rewrite the ownership of the tree
+        # the user has been putting models in.
+        chown "${APPID}:${APPID}" "${SHARE_PATH}" 2>/dev/null || true
+        say "share folder ready: ${SHARE_PATH}"
+    fi
+
+    # Members of allusers can open the folders the administrator shares with
+    # them (guide 10.6, second option).
+    command -v usermod >/dev/null 2>&1 && usermod -aG allusers "${APPID}" >/dev/null 2>&1 || true
+
+    # 5. Portal route.
+    #
+    #    The platform nginx includes conf.d/*.conf. It does NOT load the snippet
+    #    from /usr/local/<appid>/nginx/ on its own, so the application ships the
+    #    snippet and its lifecycle scripts install and remove it. This is what
+    #    makes config.ini "path" ("/<appid>/") resolvable; without it the only
+    #    reachable URL is the bare port, which the guide forbids pointing at.
+    if [ -f "${APP_ROOT}/nginx/${APPID}.conf" ] && [ -d /etc/nginx/conf.d ]; then
+        install -m 0644 "${APP_ROOT}/nginx/${APPID}.conf" "${NGINX_ACTING}" 2>/dev/null \
+            || cp -f "${APP_ROOT}/nginx/${APPID}.conf" "${NGINX_ACTING}"
+        chmod 0644 "${NGINX_ACTING}" 2>/dev/null || true
+        systemctl reload nginx 2>/dev/null || service nginx reload 2>/dev/null || true
+    fi
+
+    # 6. Service.
+    if [ -f "${APP_ROOT}/init.d/${APPID}.service" ]; then
+        install -m 0644 "${APP_ROOT}/init.d/${APPID}.service" "${UNIT_DST}" 2>/dev/null \
+            || cp -f "${APP_ROOT}/init.d/${APPID}.service" "${UNIT_DST}"
+    fi
+    systemctl daemon-reload 2>/dev/null || true
+    systemctl enable "${APPID}.service" 2>/dev/null || true
+    systemctl restart "${APPID}.service" 2>/dev/null || true
+
+    sleep 1
+    if systemctl is-active --quiet "${APPID}.service" 2>/dev/null; then
+        say "service is running"
+    else
+        say "WARNING: service did not come up; see journalctl -u ${APPID}.service"
+        systemctl --no-pager --full status "${APPID}.service" 2>&1 | tail -n 20 >> "${LOG}" 2>/dev/null || true
+    fi
+
+    say "installed successfully."
 fi
 
-# The application directory follows the ownership in guide 10.4. ProtectSystem
-# =strict keeps /usr read-only for the service anyway, so this does not give
-# the service a writable install tree.
-chown -R "${APPID}:${APPID}" "${APP_DIR}" 2>/dev/null || true
-find "${APP_DIR}" -type d -exec chmod 0755 {} + 2>/dev/null || true
-find "${APP_DIR}" -type f -exec chmod 0644 {} + 2>/dev/null || true
-chmod 0755 "${APP_DIR}/bin/${APPID}" 2>/dev/null || true
-
-systemctl daemon-reload 2>/dev/null || true
-systemctl enable "${APPID}.service" 2>/dev/null || true
-systemctl start "${APPID}.service" 2>/dev/null || true
-
-echo "${APPID} installed successfully."
 exit 0

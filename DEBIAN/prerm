@@ -1,14 +1,30 @@
 #!/bin/bash
-# TOS 7 pre-removal script for CAD Viewer.
+# TOS 7 pre-remove script for CAD Viewer.
+#
+# The service is stopped here rather than in postrm so that the files it reads
+# are still on disk while systemd shuts it down, and so that the portal route
+# disappears at the same moment the application does.
 set -e
 
 APPID="le3gold-cadviewer"
+DATA_ROOT="/var/lib/${APPID}"
+LOG="${DATA_ROOT}/install.log"
 
-# Stop the service first so no file handles stay open while dpkg removes files.
-systemctl stop "${APPID}.service" 2>/dev/null || true
-systemctl disable "${APPID}.service" 2>/dev/null || true
+say() {
+    echo "${APPID}: $*"
+    echo "$(date '+%F %T') $*" >> "${LOG}" 2>/dev/null || true
+}
 
-# Terminate anything the service user still has running.
-pkill -u "${APPID}" 2>/dev/null || true
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    systemctl stop "${APPID}.service" 2>/dev/null || true
+    systemctl disable "${APPID}.service" 2>/dev/null || true
+
+    # Take the portal route down with the application, so nginx never proxies to
+    # a port that no longer has a listener behind it.
+    rm -f "/etc/nginx/conf.d/${APPID}.conf"
+    systemctl reload nginx 2>/dev/null || service nginx reload 2>/dev/null || true
+
+    say "stopped and removed portal route"
+fi
 
 exit 0

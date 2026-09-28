@@ -7,22 +7,33 @@ StartLimitIntervalSec=60
 [Service]
 Type=simple
 
-# User=/Group= are deliberately absent.
+# Dedicated unprivileged account, created by the platform from the "user"
+# field in config.ini (guide 8.12 / 10.3). The name must match that field.
 #
-# The guide marks User=<appid> and Group=<appid> as required, but on TOS 7 the
-# platform creates only the user (uid >= 10000) and gives it `allusers` as its
-# primary group; no group named <appid> is ever created. A unit that asks for
-# it dies with "Failed to determine group credentials" and status 216/GROUP,
-# then restart-loops until systemd gives up with "Start request repeated too
-# quickly". Creating the missing group by hand only moves the failure to
-# 200/CHDIR: the application's own files live under /Volume1/@apps/<appid>
-# (reached through the platform-created /usr/local/<appid> symlink), and that
-# volume is mounted with btrfs `tmacl`, which denies every non-root user -
-# including the application's own user - any access to it. All 30 applications
-# installed on the reference TNAS run as root for this reason.
-WorkingDirectory=/usr/local/le3gold-cadviewer
-ExecStart=/usr/local/le3gold-cadviewer/bin/le3gold-cadviewer
-EnvironmentFile=/usr/local/le3gold-cadviewer/le3gold-cadviewer.env
+# The service deliberately does NOT run from /usr/local/<appid>. That path is
+# a symlink into /Volume*/@apps/<appid>, and TerraMaster's rich ACL ("tmacl",
+# the btrfs mount option behind /Volume*) is deny-by-default at EVERY
+# directory level, so an unprivileged process cannot even read its own binary
+# there. Measured on a real TNAS running TOS 7.0.1201:
+#
+#   $ tmacltool get-perm /Volume1 <app uid>    -> max_permission: -------------
+#   $ su -s /bin/sh <appid> -c 'ls /Volume1/@apps'
+#     -> Permission denied        (the directory is mode 755; the POSIX bits
+#                                  do not decide, the tmacl entries do)
+#   $ su -s /bin/sh <appid> -c 'wc -c /usr/local/<appid>/bin/<appid>'
+#     -> Permission denied
+#
+# DEBIAN/postinst therefore stages the executable and the web UI under
+# /var/lib/<appid>/runtime - the system volume carries no tmacl entries - and
+# owns that tree to this account. The staging copy is refreshed on every
+# install, so an upgrade always runs the current build.
+User=le3gold-cadviewer
+Group=le3gold-cadviewer
+WorkingDirectory=/var/lib/le3gold-cadviewer/runtime
+ExecStart=/var/lib/le3gold-cadviewer/runtime/bin/le3gold-cadviewer
+# The "-" prefix makes the file optional, so a missing one cannot take the
+# unit down with it.
+EnvironmentFile=-/var/lib/le3gold-cadviewer/runtime/le3gold-cadviewer.env
 TimeoutStartSec=30
 TimeoutStopSec=10
 Restart=on-failure
@@ -30,6 +41,8 @@ RestartSec=10
 
 # Security hardening
 NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
@@ -39,6 +52,11 @@ ProtectKernelModules=true
 ProtectControlGroups=true
 RestrictRealtime=true
 LockPersonality=true
+RestrictNamespaces=true
+ProtectClock=true
+ProtectHostname=true
+ProtectKernelLogs=true
+UMask=0027
 RestrictSUIDSGID=true
 RemoveIPC=true
 SystemCallArchitectures=native

@@ -36,6 +36,8 @@ REQUIRED_PAYLOAD = {
     INSTALL_DIR + '/images/icons/%s.svg' % APPID: 0o644,
     INSTALL_DIR + '/init.d/%s.service' % APPID: 0o644,
     INSTALL_DIR + '/nginx/%s.conf' % APPID: 0o644,
+    INSTALL_DIR + '/README.md': 0o644,
+    INSTALL_DIR + '/PRIVACY.md': 0o644,
     INSTALL_DIR + '/webui.bz2': 0o644,
 }
 
@@ -183,18 +185,17 @@ def check_unit_namespace(files, problems):
 
 
 def check_unit_identity(files, problems):
-    """Catch the unit identity that cannot start on TOS 7.
+    """The unit has to run as the dedicated non-root account.
 
-    The guide marks User=<appid> and Group=<appid> as required, but the
-    platform creates only the user and gives it `allusers` as its primary
-    group; no group named <appid> is created. Such a unit dies with
-    "Failed to determine group credentials" / 216/GROUP and restart-loops.
-    Adding the group by hand only moves the failure to 200/CHDIR, because the
-    application's own files sit under /Volume1/@apps/<appid> (through the
-    platform's /usr/local/<appid> symlink) and that btrfs volume is mounted
-    with `tmacl`, which denies non-root users - including the application's own
-    user - all access. Every application installed on the reference TNAS runs
-    as root for this reason.
+    Review item V1 rejects a package whose service runs as root. The unit must
+    name the identity from config.ini, and the package must stage everything
+    that identity reads outside the tmacl-guarded /Volume* tree: guide 10.3
+    forbids root, while /Volume* denies non-root users by default - even on the
+    application's own /Volume*/@apps/<appid> directory.
+
+    The platform provisions the user but not a group of the same name, so
+    postinst creates that group when it is missing, the same shape the working
+    le3gold-xunlei package uses.
     """
     path = '%s/init.d/%s.service' % (INSTALL_DIR, APPID)
     if path not in files:
@@ -202,10 +203,12 @@ def check_unit_identity(files, problems):
     text = files[path].decode('utf-8', 'replace')
     for directive in ('User', 'Group'):
         match = re.search(r'(?mi)^\s*%s\s*=\s*(\S+)\s*$' % directive, text)
-        if match and match.group(1) in (APPID, APPID + '.service'):
-            problems.append('the unit sets %s=%s, but the platform never '
-                            'creates that group: systemd fails with 216/GROUP '
-                            'and the service restart-loops' % (directive, match.group(1)))
+        if match is None:
+            problems.append('the unit does not set %s, so the service would run '
+                            'as root, which review item V1 rejects' % directive)
+        elif match.group(1) != APPID:
+            problems.append('the unit sets %s=%s, expected %s'
+                            % (directive, match.group(1), APPID))
 
 
 def check_permission_rules(entries, files, problems):
@@ -220,11 +223,16 @@ def check_permission_rules(entries, files, problems):
                                 % (name, command))
         for line in text.split('\n'):
             stripped = line.strip()
-            # Removing the systemd unit on purge is what the official template
-            # does; anything else under /etc is a permission red line (10.9).
-            if stripped.startswith('#') or 'systemd/system' in stripped:
+            if stripped.startswith('#'):
                 continue
-            if '/etc/' in stripped:
+            # The official postrm template itself removes
+            # /etc/nginx/conf.d/<appid>.conf and
+            # /etc/systemd/system/<system_id>.service (guide 08, section 8.14),
+            # so those two paths are sanctioned even though guide 10.9 lists
+            # /etc as a system-directory red line. Anything else under /etc is
+            # still a finding.
+            if '/etc/' in stripped and not any(s in stripped for s in
+                                               ('/etc/nginx/conf.d', '/etc/systemd/system')):
                 problems.append('%s touches /etc (guide 10.9): %s' % (name, stripped))
 
     unit = files.get(INSTALL_DIR + '/init.d/%s.service' % APPID)
@@ -232,13 +240,8 @@ def check_permission_rules(entries, files, problems):
         problems.append('payload has no init.d/%s.service' % APPID)
         return
     text = unit.decode('utf-8', 'replace')
-    # TOS 7 cannot satisfy the guide's non-root identity: the platform creates
-    # the user but never a group of the same name (216/GROUP), and even once
-    # the group exists the application's own files under /Volume1/@apps are
-    # unreachable for non-root users, because that btrfs volume is mounted with
-    # `tmacl`. Every application installed on the reference TNAS runs as root,
-    # so only the hardening directives are required here. An explicit
-    # User=<appid>/Group=<appid> is rejected by check_unit_identity instead.
+    # The hardening directives the guide marks as required. The service identity
+    # itself is checked by check_unit_identity.
     for directive in ('ProtectSystem=strict', 'NoNewPrivileges=true'):
         if directive not in text:
             problems.append('systemd unit is missing %s' % directive)
@@ -365,8 +368,9 @@ def main():
         else:
             if config.get('version') != fields.get('Version'):
                 problems.append('config.ini version and DEBIAN/control Version disagree')
-            if '${ip}' not in str(config.get('path', '')):
-                problems.append('config.ini path must use the ${ip} placeholder')
+            if str(config.get('path', '')) != '/%s/' % APPID:
+                problems.append('config.ini path must be the portal route "/%s/"'
+                                % APPID)
 
     if INSTALL_DIR + '/webui.bz2' in files:
         count, size = check_webui(files[INSTALL_DIR + '/webui.bz2'], problems)
