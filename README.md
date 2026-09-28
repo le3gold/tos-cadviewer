@@ -217,12 +217,52 @@ application copies this pattern.
 | `/var/lib/le3gold-cadviewer/install.log` | Lifecycle-script log, for when the `dpkg -i` output is gone |
 | `/Volume1/CADViewer/` | The application shared folder. **Never deleted**, not even on purge |
 | `/etc/nginx/conf.d/le3gold-cadviewer.conf` | Portal route, installed by `postinst` |
+| `/usr/lib/le3gold-cadviewer/runtime-fixup.sh` | Root-run repair hook the unit calls from `ExecStartPre` |
 | `/var/log/le3gold-cadviewer/` | **Not used.** `/var/log` is a symlink to the tmpfs `/tmp/log`, so anything written there is erased at every reboot. Logs go to the journal instead |
 | TCP 17868 | Backend HTTP port (see `important` in `le3gold-cadviewer.lang`) |
 
 `webui.bz2` is flat: `index.html` sits at the root of the archive, which is how
 the guide builds it (`tar -cjf webui.bz2 -C webui/ .`). `postinst` extracts it
 into `runtime/webui/` and `bin/le3gold-cadviewer` serves it from there.
+
+## The platform installs before it creates the account
+
+On a fresh application the platform runs `DEBIAN/postinst` **first** and
+provisions the account named by `config.ini` `user` a few seconds later. Every
+postinst step that names that account therefore fails, and the unit cannot even
+start while its `User=` is unresolved. Captured on TOS 7.0.1201, first install:
+
+```
+19:13:05 application: CreateAppFolder: owner lookup failed, using root
+19:13:06 systemd: le3gold-cadviewer.service: Failed to determine user credentials:
+         No such file or directory                       (status=217/USER)
+19:13:57 systemd: le3gold-cadviewer.service: Start request repeated too quickly.
+```
+
+With the default start policy (5 attempts in 60 s) systemd gave up long before
+the account appeared, so the application only came up because it was installed a
+second time. Two things in this package make a first install work:
+
+- The unit sets `StartLimitIntervalSec=0`, so it retries every `RestartSec`
+  until the platform creates the account instead of declaring the unit dead.
+- `ExecStartPre=-+/usr/lib/<appid>/runtime-fixup.sh` runs as root on every
+  start and reapplies what postinst could not: it owns
+  `/var/lib/<appid>` to the account, adds the account to `allusers`, and adds
+  the missing `tmacl` entries for the volume roots and the shared folder. It is
+  idempotent, silent when there is nothing to repair, and always exits 0.
+
+`postinst` chooses the mode of `/var/lib/<appid>` from whether the account
+already exists: `0750` once it can own the tree, `0755` when it cannot yet, so
+the service can start either way. The hook tightens it again as soon as the tree
+is really owned by the account.
+
+Measured after a platform install of 1.1.6, the hook reporting for itself:
+
+```
+$ journalctl -u le3gold-cadviewer | grep runtime-fixup
+runtime-fixup.sh[2628805]: le3gold-cadviewer: runtime-fixup: granted le3gold-cadviewer traversal on /Volume5
+runtime-fixup.sh[2628805]: le3gold-cadviewer: runtime-fixup: granted le3gold-cadviewer traversal on /Volume9
+```
 
 ## Running as a non-root account (review item V1)
 
@@ -250,15 +290,25 @@ grants the account traversal (`r-x`) on each volume root and read-write on its o
 shared folder, which is the minimum needed to reach a shared folder the
 administrator has opened to it.
 
-Verified on TOS 7.0.1201, both as an upgrade and as a clean install:
+Verified on TOS 7.0.1201 through the App Center's own manual-install channel,
+which is the platform's root executor:
 
 ```
 $ ps -eo user,args | grep le3gold-cadviewer
 le3gold+  ...  /usr/bin/python3 /var/lib/le3gold-cadviewer/runtime/bin/le3gold-cadviewer
-$ systemctl show -p User -p Group le3gold-cadviewer
+$ systemctl show -p User -p Group -p StartLimitIntervalUSec le3gold-cadviewer
 User=le3gold-cadviewer
 Group=le3gold-cadviewer
+StartLimitIntervalUSec=0
+$ curl -s http://127.0.0.1:17868/le3gold-cadviewer/health
+{"status":"ok","app":"le3gold-cadviewer","version":"1.1.6"}
+$ curl -o /dev/null -w '%{http_code}' http://127.0.0.1:8181/le3gold-cadviewer/
+200
 ```
+
+`tools/verify_deb.py` asserts all of this on the built package: the two identity
+directives, `StartLimitIntervalSec=0`, the repair hook and its mode, and that
+the version the service announces matches `config.ini`.
 
 Logs go to the journal (`journalctl -u le3gold-cadviewer`), never to
 `/var/log/<appid>`.

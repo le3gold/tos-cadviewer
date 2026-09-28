@@ -26,6 +26,9 @@ DEBIAN_BINARY_CONTENT = b'2.0\n'
 
 APPID = 'le3gold-cadviewer'
 INSTALL_DIR = 'usr/local/' + APPID
+# The root-run repair hook the unit calls from ExecStartPre. It must not live in
+# the application tree: /usr/lib/<appid>/ is the package-private location.
+SYSTEM_PATHS = frozenset(['usr/lib/%s/runtime-fixup.sh' % APPID])
 
 # Files the payload must provide, with the mode they must carry.
 REQUIRED_PAYLOAD = {
@@ -39,6 +42,7 @@ REQUIRED_PAYLOAD = {
     INSTALL_DIR + '/README.md': 0o644,
     INSTALL_DIR + '/PRIVACY.md': 0o644,
     INSTALL_DIR + '/webui.bz2': 0o644,
+    'usr/lib/%s/runtime-fixup.sh' % APPID: 0o755,
 }
 
 REQUIRED_CONTROL_FIELDS = ('Package', 'Version', 'Architecture', 'Maintainer', 'Description',
@@ -247,6 +251,76 @@ def check_permission_rules(entries, files, problems):
             problems.append('systemd unit is missing %s' % directive)
 
 
+def check_app_version(files, problems):
+    """The version the application reports has to be the version that shipped.
+
+    The service answers /health with the version constant compiled into its own
+    source, and the store reads the version out of config.ini. Nothing kept the
+    two in sync, so 1.1.5 and 1.1.6 both shipped a service that announced
+    "1.1.5" - visible to anyone who curled the portal after an upgrade.
+    """
+    binary = files.get(INSTALL_DIR + '/bin/' + APPID)
+    config_raw = files.get(INSTALL_DIR + '/config.ini')
+    if binary is None or config_raw is None:
+        return
+    try:
+        declared = json.loads(config_raw.decode('utf-8')).get('version')
+    except ValueError:
+        return
+    match = re.search(rb"^APP_VERSION\s*=\s*'([^']*)'", binary, re.M)
+    if match is None:
+        problems.append('bin/%s does not declare APP_VERSION' % APPID)
+        return
+    reported = match.group(1).decode('ascii', 'replace')
+    if reported != declared:
+        problems.append('bin/%s reports version %r while config.ini says %r; the '
+                        'service would announce the wrong version on /health'
+                        % (APPID, reported, declared))
+
+
+def check_startup_recovery(files, problems):
+    """The package has to come up on the first install, not the second one.
+
+    The platform runs DEBIAN/postinst before it creates the application account,
+    so on a fresh install the unit's User= is still unresolved and systemd kills
+    it with 217/USER. With the default rate limit (5 starts in 60 s) systemd then
+    declares the unit dead long before the account appears - measured on TOS
+    7.0.1201, where the application only started because it was installed twice.
+
+    Two things keep a first install working, and both are asserted here:
+      * the unit disables start rate limiting, so it retries until the account
+        exists;
+      * ExecStartPre runs the root helper that repairs ownership, group
+        membership and tmacl entries at that moment.
+    """
+    helper = 'usr/lib/%s/runtime-fixup.sh' % APPID
+    unit = files.get(INSTALL_DIR + '/init.d/%s.service' % APPID)
+    if unit is None:
+        return
+    text = unit.decode('utf-8', 'replace')
+    if not re.search(r'(?mi)^\s*StartLimitIntervalSec\s*=\s*0\s*$', text):
+        problems.append('the unit does not set StartLimitIntervalSec=0, so a first install '
+                        'can leave the service dead: postinst runs before the platform '
+                        'creates the application account and 217/USER exhausts the start limit')
+    if helper not in text:
+        problems.append('the unit does not run the %s repair hook, which is the only place '
+                        'the account-specific setup can happen on a first install' % helper)
+    elif not re.search(r'(?mi)^\s*ExecStartPre\s*=\s*-?\+\s*/%s\s*$' % re.escape(helper), text):
+        problems.append('ExecStartPre must invoke /%s with the "+" prefix, so it runs as root '
+                        'while the service itself stays unprivileged' % helper)
+
+    if helper not in files:
+        return
+    body = files[helper]
+    if b'\r\n' in body:
+        problems.append('/%s must use LF line endings' % helper)
+    head = body[:64].decode('utf-8', 'replace')
+    if not head.startswith('#!'):
+        problems.append('/%s has no shebang' % helper)
+    if not body.rstrip().endswith(b'exit 0'):
+        problems.append('/%s must end with "exit 0" so it can never block the service' % helper)
+
+
 def check_md5sums(entries, files, problems):
     (_, md5_data) = entries['md5sums']
     declared = {}
@@ -352,6 +426,8 @@ def main():
         if actual is not None and actual != mode:
             problems.append('/%s must be mode %04o, found %04o' % (path, mode, actual))
     for path in files:
+        if path in SYSTEM_PATHS:
+            continue
         if not path.startswith(INSTALL_DIR + '/'):
             problems.append('payload file outside %s: /%s' % (INSTALL_DIR, path))
 
@@ -359,6 +435,8 @@ def main():
     check_permission_rules(entries, files, problems)
     check_unit_namespace(files, problems)
     check_unit_identity(files, problems)
+    check_startup_recovery(files, problems)
+    check_app_version(files, problems)
 
     if INSTALL_DIR + '/config.ini' in files:
         try:

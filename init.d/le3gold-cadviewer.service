@@ -1,8 +1,22 @@
 [Unit]
 Description=CAD Viewer Service
 After=network.target
-StartLimitBurst=5
-StartLimitIntervalSec=60
+
+# Rate limiting is off on purpose.
+#
+# The platform runs DEBIAN/postinst BEFORE it creates the application account.
+# On a fresh install the first start therefore dies with 217/USER ("Failed to
+# determine user credentials"), and with the default policy (5 attempts inside
+# 60 s) systemd declared the unit dead before the account appeared. Measured on
+# TOS 7.0.1201:
+#
+#   19:13:06 systemd: Failed to determine user credentials (217/USER)
+#   19:13:57 systemd: Start request repeated too quickly.
+#
+# The application only came up because it was installed a second time. With the
+# limiter disabled the unit keeps retrying every RestartSec until the account
+# exists, and the ExecStartPre hook below then repairs what postinst could not.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -34,6 +48,11 @@ ExecStart=/var/lib/le3gold-cadviewer/runtime/bin/le3gold-cadviewer
 # The "-" prefix makes the file optional, so a missing one cannot take the
 # unit down with it.
 EnvironmentFile=-/var/lib/le3gold-cadviewer/runtime/le3gold-cadviewer.env
+# Runs as root (the "+" prefix), because the repairs it makes - owning the
+# staged runtime, joining allusers, granting tmacl entries - all name an account
+# that does not exist yet when postinst runs. The "-" prefix keeps a missing
+# helper from taking the service down; see usr/lib/<appid>/runtime-fixup.sh.
+ExecStartPre=-+/usr/lib/le3gold-cadviewer/runtime-fixup.sh
 TimeoutStartSec=30
 TimeoutStopSec=10
 Restart=on-failure

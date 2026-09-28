@@ -32,7 +32,7 @@ import tarfile
 import time
 
 APPID = 'le3gold-cadviewer'
-VERSION_FALLBACK = '1.1.4'
+VERSION_FALLBACK = '1.1.6'
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INSTALL_DIR = 'usr/local/' + APPID
@@ -58,6 +58,25 @@ PAYLOAD_DIRS = (
 PAYLOAD_GENERATED = (
     ('webui.bz2', 0o644),
 )
+
+# Payload files that live outside the application directory. The paths are both
+# the source path inside the repository and the path inside the package.
+#
+# The unit's ExecStartPre repair hook has to run as root, so it must not sit in
+# a tree the service account can write to; /usr/lib/<appid>/ is the Debian
+# location for package-private helpers.
+PAYLOAD_SYSTEM_FILES = (
+    ('usr/lib/%s/runtime-fixup.sh' % APPID, 0o755),
+)
+SYSTEM_PATHS = frozenset(path for path, _mode in PAYLOAD_SYSTEM_FILES)
+
+
+def package_path(relpath):
+    """Where a payload file ends up inside the package."""
+    if relpath in SYSTEM_PATHS:
+        return relpath
+    return '%s/%s' % (INSTALL_DIR, relpath)
+
 
 # DEBIAN/<name> on disk -> <name> inside control.tar.gz, with its mode.
 CONTROL_FILES = (
@@ -129,6 +148,11 @@ def collect_payload(root):
                 child = os.path.join(current, name)
                 relpath = os.path.relpath(child, root).replace('\\', '/')
                 entries.append((relpath, 0o644, read_payload(child, relpath)))
+    for relpath, mode in PAYLOAD_SYSTEM_FILES:
+        full = os.path.join(root, relpath)
+        if not os.path.isfile(full):
+            raise SystemExit('error: missing system payload file: %s' % relpath)
+        entries.append((relpath, mode, read_payload(full, relpath)))
     entries.sort(key=lambda entry: entry[0])
     return entries
 
@@ -166,7 +190,7 @@ def build_md5sums(entries):
         if data is None:
             continue
         digest = hashlib.md5(data).hexdigest()
-        lines.append('%s  %s/%s' % (digest, INSTALL_DIR, relpath))
+        lines.append('%s  %s' % (digest, package_path(relpath)))
     return ('\n'.join(sorted(lines)) + '\n').encode('utf-8')
 
 
@@ -371,7 +395,7 @@ def main():
     entries = collect_payload(root)
     installed_size = -(-sum(len(data) for _p, _m, data in entries if data is not None) // 1024)
 
-    data_members = [('./%s/%s' % (INSTALL_DIR, relpath),
+    data_members = [('./%s' % package_path(relpath),
                      0 if data is None else data, mode, data is None)
                     for relpath, mode, data in entries]
     data_members = add_ancestor_dirs(data_members)

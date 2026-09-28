@@ -43,6 +43,28 @@ fi
 
 if [ "$1" = "configure" ]; then
 
+    # 0. Is the application account there yet?
+    #
+    #    On the first install of a brand new application it is NOT. The platform
+    #    provisions the account a few seconds AFTER dpkg has finished, so every
+    #    call below that names it (chown, usermod, tmacltool, install -o) fails
+    #    in that window, and the unit cannot start at all while its User= is
+    #    still unresolved. Measured on a real TNAS, TOS 7.0.1201:
+    #
+    #      postinst ran       19:13:05   (dpkg finished 19:13:07)
+    #      account created    19:14:22
+    #
+    #    The package has to survive both orders. The modes below are chosen so
+    #    the service can start either way, and the unit's ExecStartPre hook
+    #    (/usr/lib/<appid>/runtime-fixup.sh, run as root) applies the repairs
+    #    that need the account, once it exists.
+    if getent passwd "${APPID}" >/dev/null 2>&1; then
+        ACCOUNT_READY=1
+    else
+        ACCOUNT_READY=0
+        say "account ${APPID} does not exist yet (the platform creates it after dpkg); deferring account-specific setup to the unit's fixup hook"
+    fi
+
     # 1. The dedicated group.
     #
     #    The unit asks for Group=<appid>. The platform creates the user from
@@ -62,7 +84,14 @@ if [ "$1" = "configure" ]; then
     #    Refreshed on every install, so an upgrade always carries the current
     #    executable and frontend. The account owns it; nothing else may write.
     mkdir -p "${RUNTIME}/bin" "${DATA_ROOT}/data"
-    chmod 0750 "${DATA_ROOT}" "${DATA_ROOT}/data"
+    if [ "${ACCOUNT_READY}" = "1" ]; then
+        chmod 0750 "${DATA_ROOT}" "${DATA_ROOT}/data"
+    else
+        # 0755 keeps the staged runtime reachable for the account the platform
+        # is about to create. runtime-fixup.sh tightens this back to 0750 as
+        # soon as the tree really is owned by the account.
+        chmod 0755 "${DATA_ROOT}" "${DATA_ROOT}/data"
+    fi
     chmod 0755 "${RUNTIME}" "${RUNTIME}/bin"
 
     if [ -f "${APP_ROOT}/bin/${APPID}" ]; then
@@ -185,7 +214,16 @@ PYEOF
         systemctl reload nginx 2>/dev/null || service nginx reload 2>/dev/null || true
     fi
 
-    # 6. Service.
+    # 6. Repair pass.
+    #
+    #    Reapplies what the unit's ExecStartPre hook does. On an upgrade, or on
+    #    any install after the platform has created the account, this is what
+    #    cleans up a tree that an earlier install left owned by root.
+    if [ -x "/usr/lib/${APPID}/runtime-fixup.sh" ]; then
+        "/usr/lib/${APPID}/runtime-fixup.sh" || true
+    fi
+
+    # 7. Service.
     if [ -f "${APP_ROOT}/init.d/${APPID}.service" ]; then
         install -m 0644 "${APP_ROOT}/init.d/${APPID}.service" "${UNIT_DST}" 2>/dev/null \
             || cp -f "${APP_ROOT}/init.d/${APPID}.service" "${UNIT_DST}"
