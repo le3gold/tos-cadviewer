@@ -32,7 +32,7 @@ import tarfile
 import time
 
 APPID = 'le3gold-cadviewer'
-VERSION_FALLBACK = '1.1.6'
+VERSION_FALLBACK = '1.1.7'
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INSTALL_DIR = 'usr/local/' + APPID

@@ -1,5 +1,5 @@
 Package: le3gold-cadviewer
-Version: 1.1.6
+Version: 1.1.7
 Architecture: amd64
 Section: utils
 Priority: optional
