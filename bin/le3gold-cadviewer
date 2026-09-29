@@ -17,9 +17,11 @@ The service runs as the dedicated unprivileged account named in config.ini
   /var/api/file-manage.sock) together with the cookies of the user who is
   looking at the page, and lets the platform decide what that user may see and
   open. The application account may hold rights the user does not have, so
-  reading through it would widen the browser. DEBIAN/postinst still creates the
+  reading through it would widen the browser. DEBIAN/postinst also creates the
   application's own shared folder and the volume-level traversal entry that the
-  platform's documentation assumes is already in place.
+  platform's documentation assumes is already in place, and the importer offers
+  that folder - not every share the platform would hand the account. See
+  IsOfferedRoot.
 
 This file is part of the TOS 7 packaging of Online 3D Viewer.
 See ../licenses/NOTICE.md for attribution and a list of modifications.
@@ -40,7 +42,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 APP_ID = 'le3gold-cadviewer'
-APP_VERSION = '1.1.9'
+APP_VERSION = '1.2.0'
 
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEBUI_DIR = os.environ.get('WEBUI_DIR', os.path.join(APP_DIR, 'webui'))
@@ -89,6 +91,32 @@ SHARE_HIDDEN_PREFIXES = ('.', '@', '#')
 # Matches the directory name as it comes back from os.listdir('/'), so it has
 # no leading separator.
 VOLUME_PREFIX = 'Volume'
+
+# Which of the folders the platform lists the importer actually offers.
+#
+# The platform answers homeList with every folder the session may reach, and a
+# member of allusers - every application account is added to that group, and so
+# is the administrator - may reach every share on the device. That is the
+# desktop file manager's view; a viewer that only has to open a model has no
+# business offering it. What the browser gets is narrowed to the folders that
+# belong to this application: the personal folder of the person looking at the
+# page, and the shared folders the administrator granted to the application's
+# own user.
+#
+# The grant is read off the filesystem, because no platform API answers that
+# question. A shared folder's permission dialog carries a tab per identity kind
+# - users, groups and application users - and the platform enforces what it
+# stores there through an ACL of its own (the system.tm_acl attribute). This
+# service runs as the application account, so it can list exactly the folders
+# that were granted to that account and nothing else. NAS_ROOTS names further
+# shares a local administrator wants to offer, comma separated, by share name:
+# NAS_ROOTS=CADViewer,models
+EXTRA_ROOT_NAMES = frozenset(
+    name.strip() for name in os.environ.get('NAS_ROOTS', '').split(',') if name.strip())
+# The share that holds every account's personal folder. The signed-in user's
+# own folder is offered as a root of its own, so this container adds nothing
+# but the names of the other accounts.
+HOME_CONTAINER = 'homes'
 # The platform's own file service - the one the desktop file manager uses. It
 # is reached through the desktop's web server, which proxies /v2/fileManage/*
 # to /var/api/file-manage.sock. The socket itself is not usable from here: on
@@ -228,18 +256,62 @@ def PlatformJson(target, cookie):
     return payload.get('data')
 
 
-def PlatformRoots(cookie):
-    """The shared folders and the personal folder of the logged in user.
+def ApplicationCanOpen(path):
+    """True when the application account itself may list this folder.
 
-    Whatever the platform lists for this session is what the browser offers;
-    a share this user may not open never appears."""
+    The platform stores a shared folder's permissions in an ACL of its own and
+    enforces them on the filesystem, so the answer here is the grant the
+    administrator made in that folder's permission dialog - the tab that lists
+    the application users. Listing is also the first thing the picker does with
+    a root, so this asks exactly the question that matters."""
+    try:
+        os.listdir(path)
+    except OSError:
+        return False
+    return True
+
+
+def IsOfferedRoot(entry, name, path):
+    """True for the listed folders the importer offers the browser.
+
+    The personal folder of the signed-in user, and the shared folders that were
+    granted to the application's user. The rest of what the platform hands over
+    - for an administrator that is every share on the device - is dropped, so
+    the browser never receives a folder this application was not given.
+
+    The test fails closed. A service that somehow runs as root can list
+    everything, which would turn it back into every share, so in that case only
+    the folders the application account owns are offered. The container of all
+    personal folders is never offered, and NAS_ROOTS may name shares to add."""
+    if entry.get('is_home') == 1:
+        return True
+    if posixpath.basename(path.rstrip('/')) == HOME_CONTAINER:
+        return False
+    if name in EXTRA_ROOT_NAMES:
+        return True
+    if os.geteuid() == 0:
+        return entry.get('owner') == APP_ID
+    return ApplicationCanOpen(path)
+
+
+def PlatformRoots(cookie):
+    """The folders the importer offers the user whose session this is.
+
+    The platform answers with every folder that account may reach; this keeps
+    that user's personal folder and the shared folders granted to the
+    application's user and drops the rest, so the browser never receives a
+    folder it must not offer. Which shares those are is decided in
+    IsOfferedRoot."""
     entries = PlatformJson(FILE_SERVICE_PREFIX + '/homeList', cookie) or []
     roots = []
     for entry in entries:
         path = entry.get('path') or ''
+        name = entry.get('name') or posixpath.basename(path)
         if entry.get('f_type') != 'folder' or not path:
             continue
-        roots.append({'name': entry.get('name') or posixpath.basename(path),
+        if not IsOfferedRoot(entry, name, path):
+            continue
+        roots.append({'name': name,
                       'path': path,
                       'volume': VolumeLabel(entry.get('volume'))})
     return roots

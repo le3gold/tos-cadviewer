@@ -120,9 +120,30 @@ loadable `index.html` and the OCCT WebAssembly decoder.
 
 The toolbar's import button offers two entries: **Import from this computer**,
 which is upstream's own file dialog, and **Import from the NAS**, which opens a
-browser for the folders the signed-in user may open. A model picked there is
-streamed straight into the viewer - nothing is copied and no temporary file is
-created, which is what makes a multi-hundred-megabyte STEP file practical.
+browser for the folders this application is allowed to offer. A model picked
+there is streamed straight into the viewer - nothing is copied and no temporary
+file is created, which is what makes a multi-hundred-megabyte STEP file
+practical.
+
+What the browser offers is narrowed twice, and both answers come from the
+platform:
+
+- **The folders of the application.** The platform answers `homeList` with
+  every folder the session may reach, and a member of `allusers` - which every
+  application account is added to, and which the administrator belongs to as
+  well - may reach every share on the device. Showing that would turn the
+  picker into a file manager. The application offers a share only when its own
+  account can list it, which is exactly the set the administrator granted on
+  the shared folder's own permission dialog (Control Panel > Shared Folders >
+  Permissions > **Application users**). The platform enforces those grants
+  through its own ACL, so this needs no platform API and follows the grant as
+  it is made, without reinstalling the application. The personal folder of the
+  signed-in user is offered as well; the `homes` container that holds every
+  account's personal folder never is.
+- **The rights of the person looking at the page.** Every listing and every
+  file is still answered by the platform's file service under that user's
+  session, so a folder the user may not open stays out of reach even when the
+  application itself may read it.
 
 The browser is backed by the platform's own file service, the one the desktop
 file manager uses (`/v2/fileManage/*` on the desktop's own web server, which
@@ -136,7 +157,7 @@ users separately - therefore cannot widen the browser.
 
 | Route | Purpose |
 | --- | --- |
-| `GET /api/fs/roots` | the folders of the signed-in user: the shares plus the personal folder |
+| `GET /api/fs/roots` | the folders this application offers that user: the shares granted to the application user, plus that user's personal folder |
 | `GET /api/fs/list?path=<abs>` | one directory level, as the platform lists it for that user |
 | `GET /api/fs/open/<share path>` | the file bytes, streamed |
 

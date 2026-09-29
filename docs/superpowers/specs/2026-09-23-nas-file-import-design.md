@@ -100,11 +100,21 @@ streamed from disk, so a 500 MB STEP model is never copied.
 
 ### Browsable roots
 
-Whatever the platform's file service answers to `homeList` for this session:
-the shared folders this user may open, plus that user's personal folder. A
-share the user has no permission on is not in the answer and therefore cannot
-be offered; neither can `/home` of another account, `/Volume1/@apps` or any
-other path the desktop file manager hides from that user.
+`homeList` is the starting point, not the answer. For an administrator or a
+member of `allusers` it names every share on the device, so the application
+narrows it to the folders that belong to the application: a share is offered
+only when the application's own account can list it, which is the set the
+administrator granted on the shared folder's permission dialog under
+*Application users*. The platform enforces that grant with its own ACL, so the
+test needs no platform API and follows the grant as it is made. The personal
+folder of the signed-in user is offered as well, and the `homes` container is
+not.
+
+Everything inside a root is then answered by the platform's file service under
+the session of the person looking at the page, so it carries that person's own
+permissions: a share this user may not open never lists a file, and `/home` of
+another account, `/Volume1/@apps` and the paths the desktop file manager hides
+stay out of reach.
 
 Hidden entries (`@apps`, `#recycle`, dotfiles) are filtered out of the listing
 as well. The parent of a root is never offered as "up": `/`, `/home` and the
