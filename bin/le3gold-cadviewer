@@ -12,17 +12,21 @@ The service runs as the dedicated unprivileged account named in config.ini
   ("tmacl") denies to unprivileged users at every directory level, so an
   unprivileged process cannot even read its own binary there. See
   init.d/le3gold-cadviewer.service for the measurements.
-* The NAS file API can only read shared folders this account has been granted.
-  Folders it cannot open are left out of the listing rather than offered and
-  then failing when clicked. DEBIAN/postinst creates the application's own
-  shared folder and adds the volume-level traversal entry that the platform's
-  documentation assumes is already in place.
+* The NAS file API reads nothing itself. It forwards every request to the
+  platform's own file service (/v2/fileManage/*, served by
+  /var/api/file-manage.sock) together with the cookies of the user who is
+  looking at the page, and lets the platform decide what that user may see and
+  open. The application account may hold rights the user does not have, so
+  reading through it would widen the browser. DEBIAN/postinst still creates the
+  application's own shared folder and the volume-level traversal entry that the
+  platform's documentation assumes is already in place.
 
 This file is part of the TOS 7 packaging of Online 3D Viewer.
 See ../licenses/NOTICE.md for attribution and a list of modifications.
 """
 
 import hashlib
+import http.client
 import json
 import os
 import posixpath
@@ -33,10 +37,10 @@ import sys
 import threading
 import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, unquote, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 APP_ID = 'le3gold-cadviewer'
-APP_VERSION = '1.1.8'
+APP_VERSION = '1.1.9'
 
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEBUI_DIR = os.environ.get('WEBUI_DIR', os.path.join(APP_DIR, 'webui'))
@@ -85,6 +89,16 @@ SHARE_HIDDEN_PREFIXES = ('.', '@', '#')
 # Matches the directory name as it comes back from os.listdir('/'), so it has
 # no leading separator.
 VOLUME_PREFIX = 'Volume'
+# The platform's own file service - the one the desktop file manager uses. It
+# is reached through the desktop's web server, which proxies /v2/fileManage/*
+# to /var/api/file-manage.sock. The socket itself is not usable from here: on
+# TOS 7 /var/api is a symlink into /tmp and this unit runs with PrivateTmp, so
+# the socket does not exist inside the unit's namespace.
+FILE_SERVICE_URL = os.environ.get('FILE_SERVICE_URL', 'http://127.0.0.1:8181')
+FILE_SERVICE_TIMEOUT = float(os.environ.get('FILE_SERVICE_TIMEOUT', '60'))
+FILE_SERVICE_PREFIX = '/v2/fileManage'
+# The header the platform reads its anti-forgery cookie back out of.
+CSRF_COOKIE = 'X-Csrf-Token'
 FILE_API_PREFIX = '/api/fs/'
 SESSION_COOKIE = 'cadviewer_session'
 SESSION_TOKEN = secrets.token_urlsafe(24)
@@ -124,111 +138,139 @@ def IsHiddenEntry(name):
     return name.startswith(SHARE_HIDDEN_PREFIXES)
 
 
-def VolumeNumber(path):
-    """The trailing number of a volume path, so Volume10 sorts after Volume9."""
-    return int(os.path.basename(path)[len(VOLUME_PREFIX):])
-
-
-def VolumeMounts():
-    """The mounted volumes, lowest number first. Reads the real root instead of
-    assuming a fixed count, because the number of volumes differs per device."""
-    try:
-        names = os.listdir('/')
-    except OSError:
-        return []
-    volumes = []
-    for name in names:
-        if IsVolumeName(name):
-            volumes.append(os.path.join('/', name))
-    volumes.sort(key=VolumeNumber)
-    return volumes
-
-
-def VolumeLabel(path):
-    name = os.path.basename(path)
-    if IsVolumeName(name):
+def VolumeLabel(name):
+    """'Volume1' is shown the way the desktop spells it: 'Volume 1'."""
+    if name and IsVolumeName(name):
         return 'Volume %d' % int(name[len(VOLUME_PREFIX):])
-    return name
+    return name or ''
 
 
-def ListRoots():
-    """The shared folders this account may actually open.
+def IsContainerDirectory(path):
+    """True for the levels the platform does not list: '/', '/home' and the
+    volume roots. They are the parents of the browsable roots, never a folder
+    the user may open."""
+    return path in ('/', '/home', '') or IsVolumeName(posixpath.basename(path))
 
-    Enumerating a volume is cheap, but opening a folder the account has not
-    been granted is not: TerraMaster's tmacl refuses it, and offering such a
-    folder would only produce an error once the user clicks it. Only folders
-    that can be listed are returned. Shared folders an administrator grants to
-    the application account appear here automatically."""
-    roots = []
-    for volume in VolumeMounts():
+
+class PlatformResponse(object):
+    """A file service reply, together with the connection it arrived on."""
+
+    def __init__(self, connection, response):
+        self.connection = connection
+        self.response = response
+        self.status = response.status
+
+    def header(self, name, default=None):
+        return self.response.getheader(name, default)
+
+    def read(self):
         try:
-            names = sorted(os.listdir(volume))
-        except OSError:
+            return self.response.read()
+        finally:
+            self.close()
+
+    def stream(self, handle, size=256 * 1024):
+        try:
+            shutil.copyfileobj(self.response, handle, size)
+        finally:
+            self.close()
+
+    def close(self):
+        self.response.close()
+        self.connection.close()
+
+
+def CookieValue(header, name):
+    """One cookie out of a Cookie header, or an empty string."""
+    for part in (header or '').split(';'):
+        key, _, value = part.strip().partition('=')
+        if key == name:
+            return value
+    return ''
+
+
+def FileManageGet(target, cookie):
+    """One GET against the platform's file service, with the user's session.
+
+    The platform wants its anti-forgery cookie back in a header on the calls
+    that name a path; the browser holds both, so both are passed on."""
+    service = urlsplit(FILE_SERVICE_URL)
+    port = service.port or (443 if service.scheme == 'https' else 80)
+    constructor = http.client.HTTPSConnection if service.scheme == 'https' \
+        else http.client.HTTPConnection
+    connection = constructor(service.hostname, port, timeout=FILE_SERVICE_TIMEOUT)
+    try:
+        connection.request('GET', service.path.rstrip('/') + target, headers={
+            'Host': service.netloc or service.hostname,
+            'Accept': 'application/json',
+            'Cookie': cookie,
+            CSRF_COOKIE: CookieValue(cookie, CSRF_COOKIE),
+            'Connection': 'close',
+        })
+        return PlatformResponse(connection, connection.getresponse())
+    except OSError as error:
+        connection.close()
+        raise ApiError(503, 'The NAS file service is not reachable: %s' % error)
+
+
+def PlatformJson(target, cookie):
+    """The 'data' member of a file service reply, or an ApiError."""
+    response = FileManageGet(target, cookie)
+    body = response.read()
+    try:
+        payload = json.loads(body.decode('utf-8', 'replace'))
+    except ValueError:
+        raise ApiError(502, 'The NAS file service did not answer with JSON')
+    if not payload.get('code'):
+        message = payload.get('code_msg') or payload.get('msg') or 'refused'
+        log('file service refused %s: %s' % (target, message))
+        raise ApiError(403, 'The NAS refused this request: %s' % message)
+    return payload.get('data')
+
+
+def PlatformRoots(cookie):
+    """The shared folders and the personal folder of the logged in user.
+
+    Whatever the platform lists for this session is what the browser offers;
+    a share this user may not open never appears."""
+    entries = PlatformJson(FILE_SERVICE_PREFIX + '/homeList', cookie) or []
+    roots = []
+    for entry in entries:
+        path = entry.get('path') or ''
+        if entry.get('f_type') != 'folder' or not path:
             continue
-        for name in names:
-            if IsHiddenEntry(name):
-                continue
-            full = os.path.join(volume, name)
-            try:
-                if not os.path.isdir(full):
-                    continue
-                if not os.access(full, os.R_OK | os.X_OK):
-                    continue
-            except OSError:
-                continue
-            roots.append({'name': name, 'path': full, 'volume': VolumeLabel(volume)})
+        roots.append({'name': entry.get('name') or posixpath.basename(path),
+                      'path': path,
+                      'volume': VolumeLabel(entry.get('volume'))})
     return roots
 
 
-def ResolveSharePath(path):
-    """The absolute real path if it is a shared folder or below one, else None.
-
-    Resolving first means '..' segments and symlinks that lead outside the
-    shared folders are rejected too."""
-    if not os.path.isabs(path):
-        return None
-    real = os.path.realpath(path)
-    for root in ListRoots():
-        root_real = os.path.realpath(root['path'])
-        if real == root_real or real.startswith(root_real + os.sep):
-            return real
-    return None
-
-
-def ListDirectory(wanted):
-    real = ResolveSharePath(wanted)
-    if real is None:
-        raise ApiError(403, 'Path is outside the shared folders')
-    if not os.path.isdir(real):
-        raise ApiError(404, 'Not a directory')
-    try:
-        names = sorted(os.listdir(real))
-    except OSError as error:
-        raise ApiError(403, str(error))
-
+def PlatformDirectory(wanted, cookie):
+    """One directory level, as the platform lists it for this user."""
+    data = PlatformJson(FILE_SERVICE_PREFIX + '/list?path=' + quote(wanted, safe=''), cookie) or {}
     entries = []
-    for name in names:
-        if IsHiddenEntry(name):
+    for item in data.get('data') or []:
+        name = item.get('name') or ''
+        path = item.get('path') or ''
+        if not name or not path or IsHiddenEntry(name):
             continue
-        full = os.path.join(real, name)
-        try:
-            if os.path.isdir(full):
-                entries.append({'name': name, 'path': full, 'type': 'dir', 'size': 0})
-            elif posixpath.splitext(name)[1].lower() in MODEL_EXTENSIONS:
-                # Only formats that can be opened on their own are offered.
-                # Sidecars (.mtl, textures) are still served, but the importer
-                # asks for them by itself once the model is chosen, so listing
-                # them would only offer files that cannot open.
-                entries.append({'name': name, 'path': full, 'type': 'file',
-                                'size': os.path.getsize(full)})
-        except OSError:
-            continue
+        if item.get('f_type') == 'folder':
+            entries.append({'name': name, 'path': path, 'type': 'dir', 'size': 0})
+        elif posixpath.splitext(name)[1].lower() in MODEL_EXTENSIONS:
+            # Only formats that can be opened on their own are offered.
+            # Sidecars (.mtl, textures) are still served, but the importer
+            # asks for them by itself once the model is chosen, so listing
+            # them would only offer files that cannot open.
+            entries.append({'name': name, 'path': path, 'type': 'file',
+                            'size': int(item.get('size') or 0)})
     entries.sort(key=lambda entry: (entry['type'] != 'dir', entry['name'].lower()))
 
-    parent = os.path.dirname(real)
-    if ResolveSharePath(parent) is None:
+    current = wanted.rstrip('/') or wanted
+    parent = posixpath.dirname(current)
+    if IsContainerDirectory(parent):
         parent = None
-    return {'path': real, 'name': os.path.basename(real), 'parent': parent, 'entries': entries}
+    return {'path': current, 'name': posixpath.basename(current),
+            'parent': parent, 'entries': entries}
 
 
 class CadViewerHandler(SimpleHTTPRequestHandler):
@@ -292,13 +334,16 @@ class CadViewerHandler(SimpleHTTPRequestHandler):
         self._head_only = head_only
         try:
             self._guard_file_api()
+            # The session of the user who is looking at the page is the only
+            # thing the platform checks; this service adds nothing of its own.
+            cookie = self.headers.get('Cookie') or ''
             if path == FILE_API_PREFIX + 'roots':
-                payload = {'roots': ListRoots()}
+                payload = {'roots': PlatformRoots(cookie)}
             elif path == FILE_API_PREFIX + 'list':
                 wanted = parse_qs(urlsplit(self.path).query).get('path', [''])[0]
                 if not wanted:
                     raise ApiError(400, 'Missing path parameter')
-                payload = ListDirectory(wanted)
+                payload = PlatformDirectory(wanted, cookie)
             elif path.startswith(FILE_API_PREFIX + 'open/'):
                 # Path style on purpose: the viewer derives the file name and
                 # the extension by dropping everything after a '?', so a query
@@ -313,7 +358,7 @@ class CadViewerHandler(SimpleHTTPRequestHandler):
                 # on a network lookup.
                 if wanted[:1] not in ('/', '\\') and not os.path.isabs(wanted):
                     wanted = '/' + wanted
-                self._send_model(wanted)
+                self._send_model(wanted, cookie)
                 return True
             else:
                 raise ApiError(404, 'Unknown route')
@@ -324,11 +369,9 @@ class CadViewerHandler(SimpleHTTPRequestHandler):
         return True
 
     def _guard_file_api(self):
-        # The desktop serves the application's iframe through an authenticated
-        # proxy; an externally opened application talks to this port directly
-        # and has no platform session to check. These two checks are what can
-        # be done without one: refuse requests another site made the browser
-        # send, and require the cookie this server handed out with the page.
+        # The platform already decided what this user may read; these checks
+        # only stop a page on another site from using this browser to reach the
+        # file API, and require the cookie handed out with the page.
         site = self.headers.get('Sec-Fetch-Site')
         if site is not None and site not in ('same-origin', 'none'):
             raise ApiError(403, 'Cross-site requests are refused')
@@ -345,23 +388,30 @@ class CadViewerHandler(SimpleHTTPRequestHandler):
         if not self._head_only:
             self.wfile.write(body)
 
-    def _send_model(self, path):
-        real = ResolveSharePath(path)
-        if real is None:
-            raise ApiError(403, 'Path is outside the shared folders')
-        if not os.path.isfile(real):
-            raise ApiError(404, 'Not a file')
-        if posixpath.splitext(real)[1].lower() not in IMPORTABLE_EXTENSIONS:
+    def _send_model(self, path, cookie):
+        if posixpath.splitext(path)[1].lower() not in IMPORTABLE_EXTENSIONS:
             raise ApiError(403, 'This file type cannot be imported')
-        size = os.path.getsize(real)
+        response = FileManageGet(
+            FILE_SERVICE_PREFIX + '/fileDownload?paths=' + quote(path, safe=''), cookie)
+        if response.status != 200:
+            detail = response.read().decode('utf-8', 'replace').strip()
+            log('file service refused to open %s: %s' % (path, detail))
+            if 'permission denied' in detail:
+                raise ApiError(403, 'Your account is not allowed to read this file')
+            raise ApiError(404, 'This file cannot be opened')
         self.send_response(200)
-        self.send_header('Content-Type', self.guess_type(real))
-        self.send_header('Content-Length', str(size))
+        # The file service answers with application/octet-stream for every
+        # model, so the real type is set here instead.
+        self.send_header('Content-Type', self.guess_type(path))
+        length = response.header('Content-Length')
+        if length is not None:
+            self.send_header('Content-Length', length)
+        self.send_header('Cache-Control', 'no-store')
         self.end_headers()
         if self._head_only:
+            response.close()
             return
-        with open(real, 'rb') as handle:
-            shutil.copyfileobj(handle, self.wfile, 256 * 1024)
+        response.stream(self.wfile)
 
     # -- path handling -----------------------------------------------------
 

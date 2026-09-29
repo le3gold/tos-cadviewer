@@ -120,29 +120,43 @@ loadable `index.html` and the OCCT WebAssembly decoder.
 
 The toolbar's import button offers two entries: **Import from this computer**,
 which is upstream's own file dialog, and **Import from the NAS**, which opens a
-browser for the shared folders. A model picked there is streamed straight from
-disk into the viewer - nothing is copied and no temporary file is created, which
-is what makes a multi-hundred-megabyte STEP file practical.
+browser for the folders the signed-in user may open. A model picked there is
+streamed straight into the viewer - nothing is copied and no temporary file is
+created, which is what makes a multi-hundred-megabyte STEP file practical.
 
-The platform has a NAS file picker of its own (the one the App Center install
-wizard uses), but it is a component of the desktop page and an externally opened
-application is a different origin, so an application in this mode cannot reach
-it. The backend therefore serves a small file API of its own:
+The browser is backed by the platform's own file service, the one the desktop
+file manager uses (`/v2/fileManage/*` on the desktop's own web server, which
+proxies it to `/var/api/file-manage.sock`; the socket itself is out of reach
+because `/var/api` is a symlink into `/tmp` and the unit runs with
+`PrivateTmp`). The application reads nothing itself: it forwards each request
+together with the cookies of the user who is looking at the page, and the
+platform decides what that user may see and read. An application account holding more rights than the
+user - the normal case, because the administrator grants the account and the
+users separately - therefore cannot widen the browser.
 
 | Route | Purpose |
 | --- | --- |
-| `GET /api/fs/roots` | the shared folders, grouped by volume |
-| `GET /api/fs/list?path=<abs>` | one directory level |
+| `GET /api/fs/roots` | the folders of the signed-in user: the shares plus the personal folder |
+| `GET /api/fs/list?path=<abs>` | one directory level, as the platform lists it for that user |
 | `GET /api/fs/open/<share path>` | the file bytes, streamed |
 
-Scope and guards, in short: only the first level under each `/VolumeN` is
-exposed - never a volume root, never `@apps` - every path is `realpath`
-resolved and must stay under an allowed root (which also defeats `..` and
-symlinks), only extensions the viewer can import are served, cross-site requests
-are refused, the page hands out a session cookie the API requires, and directory
-listings are off. The residual risk is honest and unchanged by the guards: in
-external-open mode the platform provides no authentication for the port, so
-anyone who can reach it on the LAN can load the page and browse the shares.
+The platform's own picker component (`x-upload-file` / `x-path-select`) is still
+out of reach from an externally opened application, so the application keeps its
+own dialog; what it browses with is the platform's service, not a second
+implementation of it.
+
+Guards that stay in the application: cross-site requests are refused, the page
+hands out a session cookie the API requires, directory listings are off, only
+extensions the viewer can import (plus the sidecars an OBJ or glTF import pulls
+in) are served, and hidden entries (`@apps`, `#recycle`, dotfiles) are filtered
+out of the listing. Permission, path resolution and the answer to "may this
+account read this file" belong to the platform, which is the point.
+
+Reaching the service on its bare port no longer exposes the shares: the
+platform's file service refuses a request that carries no session, so browsing
+only works for a user who is signed in on the platform, and only for what that
+user may open. The port itself still has no authentication, so everything else
+the service does - serving the viewer - stays readable to anyone on the LAN.
 
 Responses carry a release scoped `ETag` and are `no-cache`, and the build
 stamps every local script and stylesheet reference in `index.html` with its own

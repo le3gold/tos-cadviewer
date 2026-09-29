@@ -23,13 +23,18 @@ application:
   are unreachable from its JavaScript. An iframe-mode application could only
   reach them through `window.parent`, which is unsupported and version fragile.
 
-The application therefore provides its own NAS browser, and the platform gap is
-recorded as a finding instead of being worked around silently.
+The application therefore provides its own NAS browser. What it browses with is
+the platform's file service (the one the desktop file manager talks to,
+`/v2/fileManage/*` -> `/var/api/file-manage.sock`), so the folders a user sees
+and the files a user may open follow that user's own permissions; the picker
+*component* stays out of reach and is recorded as a finding.
 
 ## Scope
 
 In scope: a two-item menu on the toolbar's open button, and a NAS browse and
-import flow backed by the application's own service.
+import flow served by the application's own service but answered by the
+platform's file service under the session of the user who is looking at the
+page.
 
 Out of scope: writing to the NAS, multi-select, upload in the other direction,
 and the platform component itself.
@@ -48,13 +53,30 @@ menu:
 ### Backend API
 
 Served by the service itself, same origin as the page, so there is no CORS
-involved.
+involved. Every route is a thin proxy: the service adds the caller's cookies to
+the platform's file service call (`/v2/fileManage/homeList`,
+`/v2/fileManage/list`, `/v2/fileManage/fileDownload`) and passes the answer back
+in the shape below. It never touches the filesystem, so the application
+account's own rights never widen what the browser offers.
+
+The platform answers that route on the desktop's web server, which proxies it to
+`/var/api/file-manage.sock`. The socket cannot be used directly from here: on
+TOS 7 `/var/api` is a symlink into `/tmp` and this unit runs with
+`PrivateTmp=true`, so the socket does not exist in the unit's namespace.
+`FILE_SERVICE_URL` overrides the address if a device ever differs; it defaults
+to `http://127.0.0.1:8181`.
 
 | Route | Purpose |
 | --- | --- |
-| `GET /api/fs/roots` | the browsable roots |
+| `GET /api/fs/roots` | the roots of this user: the shares plus the personal folder |
 | `GET /api/fs/list?path=<abs>` | one directory level |
-| `GET /api/fs/open/<share path>` | the file bytes |
+| `GET /api/fs/open/<share path>` | the file bytes, streamed from the platform's answer |
+
+The platform wants its anti-forgery cookie back in an `X-Csrf-Token` header on
+the two listing calls; the browser holds that cookie as well, so the service
+reads it out of the `Cookie` header and passes both on. The download call needs
+no header, and is the one the viewer itself fetches - which is why the model
+URLs stay path shaped, see below.
 
 `/api/fs/open` is path style, not query style, because the viewer derives the
 file name and the extension by stripping everything after `?`
@@ -78,17 +100,20 @@ streamed from disk, so a 500 MB STEP model is never copied.
 
 ### Browsable roots
 
-Discovered at request time: every `/VolumeN` directory, minus the entries that
-start with `@` (platform internals such as `@apps`, `@system`, `@cache`) or `#`
-(`#recycle`). What is left is the shared folders.
+Whatever the platform's file service answers to `homeList` for this session:
+the shared folders this user may open, plus that user's personal folder. A
+share the user has no permission on is not in the answer and therefore cannot
+be offered; neither can `/home` of another account, `/Volume1/@apps` or any
+other path the desktop file manager hides from that user.
 
-`/home` is deliberately not a root: the service runs with `ProtectHome=true`
-and cannot read it anyway.
+Hidden entries (`@apps`, `#recycle`, dotfiles) are filtered out of the listing
+as well. The parent of a root is never offered as "up": `/`, `/home` and the
+volume roots are container levels, not folders the user may open.
 
 ### Guard rails
 
-- Every path is `realpath`-resolved and must sit under an allowed root, which
-  also defeats `..` and symlink escapes.
+- Path resolution, permission and identity belong to the platform's file
+  service; the application asks and passes the answer on.
 - Directory listings hide dotfiles and `@` / `#` entries.
 - `/api/fs/open` only serves extensions the viewer can import, plus the
   sidecars an OBJ or glTF import needs (`.mtl`, textures, `.zip`).
@@ -118,27 +143,28 @@ names nothing can tag by hand. The digest is what makes a rebuilt release a new
 URL, and it is also what evicts entries an older release left behind with a
 `max-age` of a day.
 
-### Residual risk, and why it is a platform finding
+### What this says about the platform
 
-The service has no way to authenticate a user. In external-open mode the
-platform does not route the application through its nginx - this application
-has no snippet in `/etc/nginx/conf.d/`, unlike the iframe-mode applications -
-so no `X-Csrf-Token` and no session cookie is injected, and the browser talks
-to port 8686 directly.
+The application serves the page through the platform's own nginx snippet
+(1.1.5 and later), so the browser holds the platform session cookies and the
+file service can authenticate the user from them. What the guide still does not
+describe is any of this: `10_Permission_Model.md` describes granting the
+*application account* access to shared folders, and never says that a
+third-party application can ask the *platform* for the files of the user who is
+looking at it. The route, the socket, the `X-Csrf-Token` requirement and the
+`homeList` / `list` / `fileDownload` parameter names were all found by reading
+the desktop's own JavaScript and the device. The picker component itself remains
+unreachable, which is what this application works around.
 
-Anyone who can reach that port on the LAN can obtain the session cookie by
-loading the page and then read the shared folders through the API. The controls
-above stop cross-site attacks and naive scanning; they cannot stop an attacker
-who can already reach the port.
-
-The platform's own manual-install wizard is the counter-example: it is served
-by the authenticated desktop, so it gets both the picker and the checks for
-free. A third-party application that needs to read NAS files has no equivalent,
-so it must either stay unauthenticated or not offer the feature.
+Anyone who can reach the bare port can still load the viewer, but no longer the
+shares: the file service refuses a request without a session.
 
 ## Verification
 
 - Rebuild, `verify_deb.py`, install on the TNAS.
 - Browse to a shared folder, open a `.stp` from the NAS, confirm the mesh loads.
-- Confirm `/etc`, `/Volume1/@apps` and `/home` are refused.
+- Sign in as an ordinary user, open the application and confirm the browser
+  offers only that user's folders; open a model from that user's own folder.
+- Confirm a folder the user has no permission on is not offered, and that
+  fetching it directly through `/api/fs/open/...` is refused by the platform.
 - Confirm a cross-site request is refused.

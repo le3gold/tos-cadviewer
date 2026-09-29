@@ -2,97 +2,97 @@
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "View and inspect 3D models and CAD files directly in your browser, with nothing uploaded to the cloud. Supports STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF and AMF. All parsing runs locally on your TNAS and no internet connection is required."
-release_note = "1. The app now runs as its own non-root account and opens through the App Center portal route, as the store review requires.</br>2. The backend moved to TCP port 17868.</br>3. A privacy policy is now included (see PRIVACY.md): the app sends no data anywhere.</br>4. The description, the important notes and the release notes are now translated into all 14 store languages."
+release_note = "1. The app now runs as its own non-root account and opens through the App Center portal route, as the store review requires.</br>2. The backend moved to TCP port 17868.</br>3. A privacy policy is now included (see PRIVACY.md): the app sends no data anywhere.</br>4. The description, the important notes and the release notes are now translated into all 14 store languages.</br>5. Importing a model from the NAS now lists the folders of the signed-in user: the platform's own file service answers, so every account sees and opens only what it is allowed to."
 important = "Uses TCP port 17868 on your TNAS. Make sure this port is not occupied by another application. Do not expose this port to the internet."
 
 [zh-cn]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "在浏览器中直接查看和检查三维模型与 CAD 文件，文件不会被上传到云端。支持 STEP、IGES、BREP、IFC、STL、OBJ、PLY、3MF、GLTF/GLB、FBX、DAE、3DS、WRL、OFF、AMF 等格式。所有解析均在本机 TNAS 本地完成，无需联网。"
-release_note = "1. 应用改用独立的非 root 账号运行，并按商店审核要求通过应用中心门户路由打开。</br>2. 后端服务改用 TCP 17868 端口。</br>3. 新增隐私政策（见 PRIVACY.md）：应用不会把数据发送到任何地方。</br>4. 应用说明、重要提示与更新说明已翻译为商店支持的全部 14 种语言。"
+release_note = "1. 应用改用独立的非 root 账号运行，并按商店审核要求通过应用中心门户路由打开。</br>2. 后端服务改用 TCP 17868 端口。</br>3. 新增隐私政策（见 PRIVACY.md）：应用不会把数据发送到任何地方。</br>4. 应用说明、重要提示与更新说明已翻译为商店支持的全部 14 种语言。</br>5. 从 NAS 导入时，现在按当前登录用户的权限列出文件夹：由平台的文件服务应答，每个账号只能看到并打开自己有权限的内容。"
 important = "本应用占用 TNAS 的 TCP 17868 端口，请确认该端口未被其他应用占用。请勿将该端口暴露到公网。"
 
 [zh-hk]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "在瀏覽器中直接檢視三維模型與 CAD 檔案，檔案不會上傳到雲端。支援 STEP、IGES、BREP、IFC、STL、OBJ、PLY、3MF、GLTF/GLB、FBX、DAE、3DS、WRL、OFF、AMF 等格式。所有解析均在本機 TNAS 本地完成，無需連線網路。"
-release_note = "1. 應用改用獨立的非 root 帳號執行，並依商店審核要求透過應用中心入口路由開啟。</br>2. 後端服務改用 TCP 17868 連接埠。</br>3. 新增隱私政策（見 PRIVACY.md）：應用不會將資料傳送到任何地方。</br>4. 應用說明、重要提示與更新說明已翻譯為商店支援的全部 14 種語言。"
+release_note = "1. 應用改用獨立的非 root 帳號執行，並依商店審核要求透過應用中心入口路由開啟。</br>2. 後端服務改用 TCP 17868 連接埠。</br>3. 新增隱私政策（見 PRIVACY.md）：應用不會將資料傳送到任何地方。</br>4. 應用說明、重要提示與更新說明已翻譯為商店支援的全部 14 種語言。</br>5. 從 NAS 匯入時，現在按目前登入使用者的權限列出資料夾：由平台的檔案服務回應，每個帳號只能看到並開啟自己有權限的內容。"
 important = "本應用佔用 TNAS 的 TCP 17868 連接埠，請確認該連接埠未被其他應用佔用。請勿將該連接埠暴露到公網。"
 
 [fr-fr]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Affichez et inspectez des modèles 3D et des fichiers CAO directement dans votre navigateur, sans rien envoyer dans le cloud. Prend en charge les formats STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF et AMF. Toute l'analyse est effectuée localement sur votre TNAS, sans connexion Internet."
-release_note = "1. L'application s'exécute désormais avec son propre compte non root et s'ouvre via la route portail de l'App Center, comme l'exige la validation du store.</br>2. Le service backend utilise maintenant le port TCP 17868.</br>3. Une politique de confidentialité est désormais incluse (voir PRIVACY.md) : l'application n'envoie aucune donnée.</br>4. La description, les remarques importantes et les notes de version sont désormais traduites dans les 14 langues du store."
+release_note = "1. L'application s'exécute désormais avec son propre compte non root et s'ouvre via la route portail de l'App Center, comme l'exige la validation du store.</br>2. Le service backend utilise maintenant le port TCP 17868.</br>3. Une politique de confidentialité est désormais incluse (voir PRIVACY.md) : l'application n'envoie aucune donnée.</br>4. La description, les remarques importantes et les notes de version sont désormais traduites dans les 14 langues du store.</br>5. L'import d'un modèle depuis le NAS liste désormais les dossiers de l'utilisateur connecté : c'est le service de fichiers de la plateforme qui répond, chaque compte ne voit et n'ouvre donc que ce à quoi il a droit."
 important = "Utilise le port TCP 17868 de votre TNAS. Vérifiez que ce port n'est pas occupé par une autre application. N'exposez pas ce port sur Internet."
 
 [de-de]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Zeigen und prüfen Sie 3D-Modelle und CAD-Dateien direkt im Browser, ohne etwas in die Cloud hochzuladen. Unterstützt STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF und AMF. Die gesamte Verarbeitung erfolgt lokal auf Ihrem TNAS, eine Internetverbindung ist nicht erforderlich."
-release_note = "1. Die App läuft jetzt unter einem eigenen Nicht-root-Konto und öffnet über die Portal-Route des App Centers, wie es die Store-Prüfung verlangt.</br>2. Das Backend verwendet jetzt den TCP-Port 17868.</br>3. Eine Datenschutzerklärung ist jetzt enthalten (siehe PRIVACY.md): Die App sendet keine Daten.</br>4. Beschreibung, wichtige Hinweise und Versionshinweise liegen jetzt in allen 14 Store-Sprachen vor."
+release_note = "1. Die App läuft jetzt unter einem eigenen Nicht-root-Konto und öffnet über die Portal-Route des App Centers, wie es die Store-Prüfung verlangt.</br>2. Das Backend verwendet jetzt den TCP-Port 17868.</br>3. Eine Datenschutzerklärung ist jetzt enthalten (siehe PRIVACY.md): Die App sendet keine Daten.</br>4. Beschreibung, wichtige Hinweise und Versionshinweise liegen jetzt in allen 14 Store-Sprachen vor.</br>5. Beim Importieren eines Modells vom NAS werden jetzt die Ordner des angemeldeten Benutzers angezeigt: Es antwortet der Dateidienst der Plattform, sodass jedes Konto nur sieht und öffnet, wozu es berechtigt ist."
 important = "Belegt den TCP-Port 17868 auf Ihrem TNAS. Stellen Sie sicher, dass dieser Port nicht von einer anderen Anwendung verwendet wird. Geben Sie diesen Port nicht im Internet frei."
 
 [it-it]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Visualizza e ispeziona modelli 3D e file CAD direttamente nel browser, senza caricare nulla sul cloud. Supporta STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF e AMF. Tutta l'elaborazione avviene localmente sul TNAS e non richiede connessione a Internet."
-release_note = "1. L'app ora viene eseguita con un proprio account non root e si apre tramite la rotta portale dell'App Center, come richiede la revisione dello store.</br>2. Il backend ora utilizza la porta TCP 17868.</br>3. È inclusa un'informativa sulla privacy (vedi PRIVACY.md): l'app non invia dati da nessuna parte.</br>4. Descrizione, avvisi importanti e note di rilascio sono ora tradotti in tutte le 14 lingue dello store."
+release_note = "1. L'app ora viene eseguita con un proprio account non root e si apre tramite la rotta portale dell'App Center, come richiede la revisione dello store.</br>2. Il backend ora utilizza la porta TCP 17868.</br>3. È inclusa un'informativa sulla privacy (vedi PRIVACY.md): l'app non invia dati da nessuna parte.</br>4. Descrizione, avvisi importanti e note di rilascio sono ora tradotti in tutte le 14 lingue dello store.</br>5. L'importazione di un modello dal NAS ora elenca le cartelle dell'utente connesso: risponde il servizio file della piattaforma, quindi ogni account vede e apre solo ciò che gli è consentito."
 important = "Utilizza la porta TCP 17868 del TNAS. Verificare che la porta non sia occupata da un'altra applicazione. Non esporre questa porta su Internet."
 
 [es-es]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Vea e inspeccione modelos 3D y archivos CAD directamente en el navegador, sin subir nada a la nube. Compatible con STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF y AMF. Todo el procesamiento se realiza localmente en su TNAS y no requiere conexión a Internet."
-release_note = "1. La aplicación ahora se ejecuta con su propia cuenta sin root y se abre mediante la ruta de portal del App Center, tal como exige la revisión de la tienda.</br>2. El backend ahora usa el puerto TCP 17868.</br>3. Se incluye una política de privacidad (consulte PRIVACY.md): la aplicación no envía datos a ningún sitio.</br>4. La descripción, los avisos importantes y las notas de la versión están ahora traducidos a los 14 idiomas de la tienda."
+release_note = "1. La aplicación ahora se ejecuta con su propia cuenta sin root y se abre mediante la ruta de portal del App Center, tal como exige la revisión de la tienda.</br>2. El backend ahora usa el puerto TCP 17868.</br>3. Se incluye una política de privacidad (consulte PRIVACY.md): la aplicación no envía datos a ningún sitio.</br>4. La descripción, los avisos importantes y las notas de la versión están ahora traducidos a los 14 idiomas de la tienda.</br>5. Al importar un modelo desde el NAS ahora se muestran las carpetas del usuario que ha iniciado sesión: responde el servicio de archivos de la plataforma, así que cada cuenta solo ve y abre lo que tiene permitido."
 important = "Utiliza el puerto TCP 17868 de su TNAS. Compruebe que este puerto no esté ocupado por otra aplicación. No exponga este puerto a Internet."
 
 [hu-hu]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "A 3D modelleket és CAD fájlokat közvetlenül a böngészőben tekintheti meg és vizsgálhatja, feltöltés a felhőbe nem történik. Támogatott formátumok: STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF és AMF. A feldolgozás teljes egészében helyben, az Ön TNAS eszközén történik, internetkapcsolat nem szükséges."
-release_note = "1. Az alkalmazás mostantól saját, nem root felhasználói fiókkal fut, és az áruház ellenőrzésének megfelelően az App Center portál útvonalán nyílik meg.</br>2. A háttérszolgáltatás a 17868-as TCP portra került.</br>3. Új adatvédelmi szabályzat (lásd: PRIVACY.md): az alkalmazás semmilyen adatot nem küld sehova.</br>4. A leírás, a fontos tudnivalók és a kiadási megjegyzések mostantól az áruház mind a 14 nyelvén elérhetők."
+release_note = "1. Az alkalmazás mostantól saját, nem root felhasználói fiókkal fut, és az áruház ellenőrzésének megfelelően az App Center portál útvonalán nyílik meg.</br>2. A háttérszolgáltatás a 17868-as TCP portra került.</br>3. Új adatvédelmi szabályzat (lásd: PRIVACY.md): az alkalmazás semmilyen adatot nem küld sehova.</br>4. A leírás, a fontos tudnivalók és a kiadási megjegyzések mostantól az áruház mind a 14 nyelvén elérhetők.</br>5. A NAS-ról történő importálás mostantól a bejelentkezett felhasználó mappáit listázza: a platform saját fájlszolgáltatása válaszol, így minden fiók csak azt látja és nyitja meg, amire jogosult."
 important = "A TNAS 17868-as TCP portját használja. Győződjön meg arról, hogy ezt a portot nem használja más alkalmazás. Ne tegye közzé ezt a portot az interneten."
 
 [ja-jp]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "ブラウザから直接 3D モデルや CAD ファイルを表示・確認できます。ファイルはクラウドに送信されません。STEP、IGES、BREP、IFC、STL、OBJ、PLY、3MF、GLTF/GLB、FBX、DAE、3DS、WRL、OFF、AMF に対応しています。解析はすべて TNAS 上でローカルに実行され、インターネット接続は不要です。"
-release_note = "1. 本アプリは専用の非 root アカウントで実行され、ストア審査の要件どおり App Center のポータル経由で開くようになりました。</br>2. バックエンドは TCP ポート 17868 に移行しました。</br>3. プライバシーポリシーを追加しました（PRIVACY.md 参照）：本アプリはどこにもデータを送信しません。</br>4. 説明・重要事項・更新履歴をストアの全 14 言語に翻訳しました。"
+release_note = "1. 本アプリは専用の非 root アカウントで実行され、ストア審査の要件どおり App Center のポータル経由で開くようになりました。</br>2. バックエンドは TCP ポート 17868 に移行しました。</br>3. プライバシーポリシーを追加しました（PRIVACY.md 参照）：本アプリはどこにもデータを送信しません。</br>4. 説明・重要事項・更新履歴をストアの全 14 言語に翻訳しました。</br>5. NAS からの読み込みでは、ログイン中のユーザーのフォルダーだけが表示されるようになりました。応答するのはプラットフォーム自身のファイルサービスで、各アカウントは許可されたものだけを表示・オープンできます。"
 important = "TNAS の TCP ポート 17868 を使用します。このポートが他のアプリケーションで使用されていないことを確認してください。このポートをインターネットに公開しないでください。"
 
 [ko-kr]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "브라우저에서 바로 3D 모델과 CAD 파일을 확인할 수 있으며 파일은 클라우드로 전송되지 않습니다. STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF, AMF 형식을 지원합니다. 모든 변환은 TNAS에서 로컬로 처리되며 인터넷 연결이 필요하지 않습니다."
-release_note = "1. 이제 앱이 자체 비 root 계정으로 실행되며, 스토어 심사 요구에 따라 App Center 포털 경로로 열립니다.</br>2. 백엔드가 TCP 포트 17868로 변경되었습니다.</br>3. 개인정보 처리방침이 포함되었습니다(PRIVACY.md 참조): 앱은 어떤 데이터도 전송하지 않습니다.</br>4. 설명, 중요 안내 및 릴리스 노트가 스토어의 14개 언어로 모두 번역되었습니다."
+release_note = "1. 이제 앱이 자체 비 root 계정으로 실행되며, 스토어 심사 요구에 따라 App Center 포털 경로로 열립니다.</br>2. 백엔드가 TCP 포트 17868로 변경되었습니다.</br>3. 개인정보 처리방침이 포함되었습니다(PRIVACY.md 참조): 앱은 어떤 데이터도 전송하지 않습니다.</br>4. 설명, 중요 안내 및 릴리스 노트가 스토어의 14개 언어로 모두 번역되었습니다.</br>5. NAS에서 모델을 가져올 때 로그인한 사용자의 폴더만 표시됩니다. 플랫폼 자체 파일 서비스가 응답하므로 각 계정은 권한이 있는 항목만 보고 열 수 있습니다."
 important = "TNAS의 TCP 포트 17868을 사용합니다. 이 포트가 다른 응용 프로그램에서 사용 중이지 않은지 확인하십시오. 이 포트를 인터넷에 노출하지 마십시오."
 
 [pl-pl]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Przeglądaj i analizuj modele 3D oraz pliki CAD bezpośrednio w przeglądarce — nic nie jest wysyłane do chmury. Obsługiwane formaty: STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF i AMF. Całe przetwarzanie odbywa się lokalnie na Twoim TNAS i nie wymaga połączenia z Internetem."
-release_note = "1. Aplikacja działa teraz na własnym koncie innym niż root i otwiera się przez trasę portalu App Center, zgodnie z wymaganiami weryfikacji sklepu.</br>2. Backend korzysta teraz z portu TCP 17868.</br>3. Dodano politykę prywatności (zobacz PRIVACY.md): aplikacja nie wysyła żadnych danych.</br>4. Opis, ważne informacje i informacje o wersji są teraz przetłumaczone na wszystkie 14 języków sklepu."
+release_note = "1. Aplikacja działa teraz na własnym koncie innym niż root i otwiera się przez trasę portalu App Center, zgodnie z wymaganiami weryfikacji sklepu.</br>2. Backend korzysta teraz z portu TCP 17868.</br>3. Dodano politykę prywatności (zobacz PRIVACY.md): aplikacja nie wysyła żadnych danych.</br>4. Opis, ważne informacje i informacje o wersji są teraz przetłumaczone na wszystkie 14 języków sklepu.</br>5. Import modelu z NAS wyświetla teraz foldery zalogowanego użytkownika: odpowiada usługa plików platformy, więc każde konto widzi i otwiera tylko to, do czego ma uprawnienia."
 important = "Wykorzystuje port TCP 17868 w Twoim TNAS. Upewnij się, że port ten nie jest zajęty przez inną aplikację. Nie udostępniaj tego portu w Internecie."
 
 [ru-ru]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Просматривайте 3D-модели и CAD-файлы прямо в браузере, не загружая их в облако. Поддерживаются форматы STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF и AMF. Вся обработка выполняется локально на вашем TNAS, подключение к интернету не требуется."
-release_note = "1. Приложение теперь работает под собственной учётной записью без прав root и открывается через портальный маршрут App Center, как требует проверка магазина.</br>2. Серверная часть переведена на TCP-порт 17868.</br>3. Добавлена политика конфиденциальности (см. PRIVACY.md): приложение никуда не отправляет данные.</br>4. Описание, важные примечания и список изменений теперь переведены на все 14 языков магазина."
+release_note = "1. Приложение теперь работает под собственной учётной записью без прав root и открывается через портальный маршрут App Center, как требует проверка магазина.</br>2. Серверная часть переведена на TCP-порт 17868.</br>3. Добавлена политика конфиденциальности (см. PRIVACY.md): приложение никуда не отправляет данные.</br>4. Описание, важные примечания и список изменений теперь переведены на все 14 языков магазина.</br>5. При импорте модели с NAS теперь показываются папки пользователя, который вошёл в систему: отвечает собственная файловая служба платформы, поэтому каждая учётная запись видит и открывает только то, что ей разрешено."
 important = "Использует TCP-порт 17868 на вашем TNAS. Убедитесь, что этот порт не занят другим приложением. Не открывайте этот порт в интернет."
 
 [tr-tr]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "3B modelleri ve CAD dosyalarını doğrudan tarayıcınızda görüntüleyin ve inceleyin; hiçbir şey buluta yüklenmez. STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF ve AMF desteklenir. Tüm işleme TNAS cihazınızda yerel olarak yapılır ve internet bağlantısı gerekmez."
-release_note = "1. Uygulama artık kendi root olmayan hesabıyla çalışıyor ve mağaza incelemesinin gerektirdiği şekilde App Center portal yoluyla açılıyor.</br>2. Arka uç artık TCP 17868 portunu kullanıyor.</br>3. Gizlilik politikası eklendi (bkz. PRIVACY.md): uygulama hiçbir yere veri göndermez.</br>4. Açıklama, önemli notlar ve sürüm notları artık mağazanın 14 dilinin tamamına çevrildi."
+release_note = "1. Uygulama artık kendi root olmayan hesabıyla çalışıyor ve mağaza incelemesinin gerektirdiği şekilde App Center portal yoluyla açılıyor.</br>2. Arka uç artık TCP 17868 portunu kullanıyor.</br>3. Gizlilik politikası eklendi (bkz. PRIVACY.md): uygulama hiçbir yere veri göndermez.</br>4. Açıklama, önemli notlar ve sürüm notları artık mağazanın 14 dilinin tamamına çevrildi.</br>5. NAS'tan model içe aktarma artık oturum açan kullanıcının klasörlerini listeler: yanıtı platformun kendi dosya servisi verir, böylece her hesap yalnızca yetkili olduğu şeyleri görür ve açar."
 important = "TNAS cihazınızda TCP 17868 portunu kullanır. Bu portun başka bir uygulama tarafından kullanılmadığından emin olun. Bu portu internete açmayın."
 
 [pt-pt]
 name = "CAD Viewer"
 auth = "Viktor Kovacs"
 descript = "Veja e inspecione modelos 3D e ficheiros CAD diretamente no navegador, sem enviar nada para a nuvem. Suporta STEP, IGES, BREP, IFC, STL, OBJ, PLY, 3MF, GLTF/GLB, FBX, DAE, 3DS, WRL, OFF e AMF. Todo o processamento é feito localmente no seu TNAS e não requer ligação à Internet."
-release_note = "1. A aplicação é agora executada com a sua própria conta sem root e abre através da rota de portal do App Center, conforme exigido pela revisão da loja.</br>2. O backend passou a usar a porta TCP 17868.</br>3. Foi incluída uma política de privacidade (ver PRIVACY.md): a aplicação não envia dados para lado nenhum.</br>4. A descrição, os avisos importantes e as notas de versão estão agora traduzidos nos 14 idiomas da loja."
+release_note = "1. A aplicação é agora executada com a sua própria conta sem root e abre através da rota de portal do App Center, conforme exigido pela revisão da loja.</br>2. O backend passou a usar a porta TCP 17868.</br>3. Foi incluída uma política de privacidade (ver PRIVACY.md): a aplicação não envia dados para lado nenhum.</br>4. A descrição, os avisos importantes e as notas de versão estão agora traduzidos nos 14 idiomas da loja.</br>5. A importação de um modelo a partir do NAS passa a listar as pastas do utilizador com sessão iniciada: responde o serviço de ficheiros da própria plataforma, pelo que cada conta só vê e abre aquilo para que tem permissão."
 important = "Utiliza a porta TCP 17868 do seu TNAS. Certifique-se de que esta porta não está ocupada por outra aplicação. Não exponha esta porta à Internet."
 
