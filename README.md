@@ -260,6 +260,9 @@ application copies this pattern.
 the guide builds it (`tar -cjf webui.bz2 -C webui/ .`). `postinst` extracts it
 into `runtime/webui/` and `bin/le3gold-cadviewer` serves it from there.
 
+The measurements behind these paths, with the commands and outputs that
+established them, are in [`docs/PACKAGING-NOTES.md`](docs/PACKAGING-NOTES.md).
+
 ## The platform installs before it creates the account
 
 On a fresh application the platform runs `DEBIAN/postinst` **first** and
